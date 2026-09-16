@@ -22,8 +22,42 @@ const TRACE = [96, 104, 100];
 const GLOSS = [150, 162, 168];
 /** Border tint: advancing edges glow in this saturated yellow, holding edges only faintly. */
 const RIM = [238, 224, 36];
-const WRINKLE_CELLS = 3;
-const GLOSS_CELLS = 5;
+const SCENT_SIGNAL = [40, 110, 230];
+const REPELLENT_SIGNAL = [200, 40, 160];
+
+/** Tuning of how each layer shows. Opacities and blends are 0..1; gains scale a model value before clamping. */
+const LOOK = Object.freeze({
+  wrinkleCells: 3,            // lattice spacing of the food-mass wrinkle texture
+  glossCells: 5,              // lattice spacing of the agar highlights
+  grain: 3,                   // amplitude of per-cell colour grain
+  glossThreshold: 0.8,        // only the brightest part of the gloss noise shows as highlights
+  glossStrength: 0.5,
+  slimeOpacity: 0.55,
+  lightGamma: 1.4,            // above 1 keeps the edge of a light spot soft
+  lightOpacity: 0.7,
+  traceGain: 1.6,
+  traceOpacity: 0.8,
+  youngFilmAges: 3,           // film stays bright for this many front ages
+  youngFilmOpacity: 0.55,
+  oldFilmOpacity: 0.1,
+  veinOpacityGain: 1.6,
+  veinToneGain: 1.8,          // how quickly a vein turns from thin olive to bright yellow
+  rimTint: 0.6,
+  rimOpacity: 0.45,
+  rimOpacityGain: 0.5,
+  massFoldStart: 0.35,        // wrinkle values below this read as deep folds
+  massFoldGain: 1.8,
+  massGapBelow: 0.12,         // wrinkle values below this read as small holes in the mass
+  massGapOpacity: 0.35,
+  massOutlineJitter: 0.7,     // how irregular the outline of a food mass is
+  scentGain: 0.9,
+  repellentGain: 0.5,
+  signalOpacity: 150,         // 0..255
+  spentFoodOpacity: 0.6,      // eaten food fades to this opacity
+  spentFoodSaturation: 0.3,
+  spentFoodBrightness: 0.85,
+  spentFoodScale: 0.75,
+});
 
 const mix = (a, b, t) => a + (b - a) * t;
 
@@ -45,9 +79,9 @@ export class DishRenderer {
     this.base = makeLayer(size);
     this.plasm = makeLayer(size);
     this.signals = makeLayer(coarseSize);
-    this.grain = new Float32Array(size * size).map(() => (Math.random() - 0.5) * 3);
-    this.wrinkle = valueNoise(size, WRINKLE_CELLS, Math.random, { ease: linear });
-    this.gloss = valueNoise(size, GLOSS_CELLS, Math.random, { ease: linear });
+    this.grain = new Float32Array(size * size).map(() => (Math.random() - 0.5) * LOOK.grain);
+    this.wrinkle = valueNoise(size, LOOK.wrinkleCells, Math.random, { ease: linear });
+    this.gloss = valueNoise(size, LOOK.glossCells, Math.random, { ease: linear });
     this.massShape = new Float32Array(size * size);
     this.shapeVersion = -1;
   }
@@ -110,8 +144,10 @@ export class DishRenderer {
     const px = this.base.image.data;
     for (let i = 0; i < slime.length; i++) {
       const o = i * 4, g = this.grain[i];
-      const shine = Math.max(0, this.gloss[i] - 0.8) * 0.5;
-      const s = Math.min(1, slime[i]) * 0.55, l = Math.pow(light[i], 1.4) * 0.7, t = Math.min(1, trace[i] * 1.6) * 0.8;
+      const shine = Math.max(0, this.gloss[i] - LOOK.glossThreshold) * LOOK.glossStrength;
+      const s = Math.min(1, slime[i]) * LOOK.slimeOpacity;
+      const l = Math.pow(light[i], LOOK.lightGamma) * LOOK.lightOpacity;
+      const t = Math.min(1, trace[i] * LOOK.traceGain) * LOOK.traceOpacity;
       let r = mix(AGAR[0] + g, GLOSS[0], shine), gr = mix(AGAR[1] + g, GLOSS[1], shine), b = mix(AGAR[2] + g, GLOSS[2], shine);
       r = mix(r, SLIME[0], s); gr = mix(gr, SLIME[1], s); b = mix(b, SLIME[2], s);
       r = mix(r, TRACE[0], t); gr = mix(gr, TRACE[1], t); b = mix(b, TRACE[2], t);
@@ -128,7 +164,7 @@ export class DishRenderer {
    */
   paintPlasmodium() {
     const { world } = this.sim;
-    const { body, age, vein, mass } = world;
+    const { body, mass } = world;
     const { frontAge } = this.sim.params.growth;
     const step = this.sim.plasmodium.stepsTaken;
     const shape = this.refreshMassShape();
@@ -136,12 +172,7 @@ export class DishRenderer {
     for (let i = 0; i < body.length; i++) {
       const o = i * 4;
       if (!body[i]) { px[o + 3] = 0; continue; }
-      const film = age[i] < frontAge * 3 ? 0.55 : 0.1;
-      const v = Math.min(1, vein[i] * 1.6);
-      const tone = Math.min(1, vein[i] * 1.8);
-      const vr = mix(THIN_VEIN[0], VEIN[0], tone), vg = mix(THIN_VEIN[1], VEIN[1], tone), vb = mix(THIN_VEIN[2], VEIN[2], tone);
-      px[o] = mix(FILM[0], vr, v) + this.grain[i]; px[o + 1] = mix(FILM[1], vg, v) + this.grain[i]; px[o + 2] = mix(FILM[2], vb, v);
-      px[o + 3] = Math.max(film, v) * 255;
+      this.shadeBody(px, o, i, frontAge);
       const rim = edgeStrength(world, i, step, frontAge);
       if (rim > 0) shadeRim(px, o, rim);
       const cover = massCoverage(mass[i], shape[i]);
@@ -150,14 +181,25 @@ export class DishRenderer {
     return commit(this.plasm);
   }
 
+  /** Film colour for young or withdrawing sheet, blended toward vein colour by vein strength. */
+  shadeBody(px, o, i, frontAge) {
+    const { age, vein } = this.sim.world;
+    const film = age[i] < frontAge * LOOK.youngFilmAges ? LOOK.youngFilmOpacity : LOOK.oldFilmOpacity;
+    const v = Math.min(1, vein[i] * LOOK.veinOpacityGain);
+    const tone = Math.min(1, vein[i] * LOOK.veinToneGain);
+    const vr = mix(THIN_VEIN[0], VEIN[0], tone), vg = mix(THIN_VEIN[1], VEIN[1], tone), vb = mix(THIN_VEIN[2], VEIN[2], tone);
+    px[o] = mix(FILM[0], vr, v) + this.grain[i]; px[o + 1] = mix(FILM[1], vg, v) + this.grain[i]; px[o + 2] = mix(FILM[2], vb, v);
+    px[o + 3] = Math.max(film, v) * 255;
+  }
+
   /**
    * Crumpled texture blended over the film/vein colour: bright ridges and deeper orange folds from a fine value
    * noise. As the mass thins, folds dull first and the colour sinks back into the film.
    */
   shadeMass(px, o, i, cover) {
     const w = this.wrinkle[i];
-    const fold = Math.min(1, Math.max(0, (w - 0.35) * 1.8)) * (0.4 + 0.6 * cover);
-    const gap = w < 0.12 ? 0.35 : 1;
+    const fold = Math.min(1, Math.max(0, (w - LOOK.massFoldStart) * LOOK.massFoldGain)) * (0.4 + 0.6 * cover);
+    const gap = w < LOOK.massGapBelow ? LOOK.massGapOpacity : 1;
     const t = cover * gap;
     px[o] = mix(px[o], mix(MASS_DEEP[0], MASS_LIGHT[0], fold), t);
     px[o + 1] = mix(px[o + 1], mix(MASS_DEEP[1], MASS_LIGHT[1], fold), t);
@@ -176,7 +218,7 @@ export class DishRenderer {
       const haloRadius = item.radius * HALO_SCALE;
       for (const i of item.halo) {
         const d = Math.hypot((i % size) - item.x, ((i / size) | 0) - item.y) / haloRadius;
-        this.massShape[i] = Math.max(this.massShape[i], 1 - d + (this.wrinkle[i] - 0.5) * 0.7);
+        this.massShape[i] = Math.max(this.massShape[i], 1 - d + (this.wrinkle[i] - 0.5) * LOOK.massOutlineJitter);
       }
     }
     this.shapeVersion = world.version;
@@ -188,10 +230,12 @@ export class DishRenderer {
     const { chemo, repel } = this.sim.world;
     const px = this.signals.image.data;
     for (let i = 0; i < chemo.length; i++) {
-      const o = i * 4, a = Math.min(1, chemo[i] * 0.9), r = Math.min(1, repel[i] * 0.5);
-      const total = Math.max(a, r);
-      px[o] = mix(40, 200, r / (a + r || 1)); px[o + 1] = mix(110, 40, r / (a + r || 1)); px[o + 2] = mix(230, 160, r / (a + r || 1));
-      px[o + 3] = total * 150;
+      const o = i * 4, a = Math.min(1, chemo[i] * LOOK.scentGain), r = Math.min(1, repel[i] * LOOK.repellentGain);
+      const share = r / (a + r || 1);
+      px[o] = mix(SCENT_SIGNAL[0], REPELLENT_SIGNAL[0], share);
+      px[o + 1] = mix(SCENT_SIGNAL[1], REPELLENT_SIGNAL[1], share);
+      px[o + 2] = mix(SCENT_SIGNAL[2], REPELLENT_SIGNAL[2], share);
+      px[o + 3] = Math.max(a, r) * LOOK.signalOpacity;
     }
     return commit(this.signals);
   }
@@ -204,9 +248,9 @@ export class DishRenderer {
       const left = item.kind === "food" ? remainingFood(sim.world, item) : 1;
       ctx.save();
       ctx.translate(cx - radius + item.x * scale, cy - radius + item.y * scale);
-      ctx.globalAlpha = 0.6 + 0.4 * left;
-      if (left < 1) ctx.filter = `saturate(${0.3 + 0.7 * left}) brightness(${0.85 + 0.15 * left})`;
-      drawSubstance(ctx, item, item.radius * scale * (0.75 + 0.25 * left));
+      ctx.globalAlpha = fade(LOOK.spentFoodOpacity, left);
+      if (left < 1) ctx.filter = `saturate(${fade(LOOK.spentFoodSaturation, left)}) brightness(${fade(LOOK.spentFoodBrightness, left)})`;
+      drawSubstance(ctx, item, item.radius * scale * fade(LOOK.spentFoodScale, left));
       ctx.restore();
     }
   }
@@ -278,13 +322,18 @@ function massCoverage(mass, shape) {
   return Math.min(1, Math.max(0, (shape - edge) / 0.15)) * Math.min(1, mass * 1.6);
 }
 
+/** Value that goes from `spent` (nothing left) to 1 (untouched) as `left` goes from 0 to 1. */
+function fade(spent, left) {
+  return spent + (1 - spent) * left;
+}
+
 /** Tint a border cell toward the rim colour and make it more opaque, in proportion to rim strength. */
 function shadeRim(px, o, rim) {
-  const t = rim * 0.6;
+  const t = rim * LOOK.rimTint;
   px[o] = mix(px[o], RIM[0], t);
   px[o + 1] = mix(px[o + 1], RIM[1], t);
   px[o + 2] = mix(px[o + 2], RIM[2], t);
-  px[o + 3] = Math.max(px[o + 3], (0.45 + 0.5 * rim) * 255);
+  px[o + 3] = Math.max(px[o + 3], (LOOK.rimOpacity + LOOK.rimOpacityGain * rim) * 255);
 }
 
 function makeLayer(size) {
