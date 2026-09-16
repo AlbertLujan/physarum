@@ -3,14 +3,16 @@ import { forEachInDisc } from "./grid.js";
 
 /**
  * Allocate all lattice layers for one Petri dish.
- * Fine layers (size²):
- *   environment  wall, food, scent, light, slime
- *   plasmodium   body (1 = cytoplasm present), age (steps since the cell joined), energy, vein (0..1 thickness),
- *                flow (routed cytoplasm), core (inoculum origin),
- *                mass (thick sheet engulfing food, 0..1), halo (cells around food that still has nutrient),
- *                trace (dried imprint of withdrawn veins, 0..1), retractedStep (step a cell last withdrew, 0 = never)
- * Coarse layers also hold pressure: vein supply blurred toward the fronts.
- * Coarse layers (coarseSize²): chemo (food attractant), repel, repelSource, coarseWall.
+ *
+ * Fine layers (size²)
+ *   environment   wall, food, scent, light, slime
+ *   plasmodium    body (1 = cytoplasm present), age (steps since the cell joined), energy, core (inoculum origin)
+ *   veins         vein (0..1 thickness), flow (routed cytoplasm)
+ *   food masses   mass (thick sheet engulfing food, 0..1), halo (cells around food that still has nutrient)
+ *   history       trace (dried imprint of withdrawn veins, 0..1), retractedStep (step a cell last withdrew, 0 = never)
+ *
+ * Coarse layers (coarseSize², one coarse cell = coarseFactor² fine cells)
+ *   chemo (food attractant), repel, repelSource, coarseWall, pressure (vein supply blurred toward the fronts)
  * @param {object} params
  */
 export function createWorld(params) {
@@ -34,13 +36,22 @@ export function createWorld(params) {
   return world;
 }
 
-/** Coarse index for a fine-grid position. */
-export function coarseIndex(world, x, y) {
-  return ((y / world.factor) | 0) * world.coarseSize + ((x / world.factor) | 0);
+/** Index of the coarse cell containing fine cell i. */
+export function coarseCellOf(world, i) {
+  const { size, factor, coarseSize } = world;
+  return (((i / size) | 0) / factor | 0) * coarseSize + (((i % size) / factor) | 0);
+}
+
+/** Food attractant at a fine-grid position, clamped to the dish edges. */
+export function chemoAt(world, x, y) {
+  const { factor, coarseSize, chemo } = world;
+  const cx = Math.min(coarseSize - 1, Math.max(0, (x / factor) | 0));
+  const cy = Math.min(coarseSize - 1, Math.max(0, (y / factor) | 0));
+  return chemo[cy * coarseSize + cx];
 }
 
 /** A coarse cell is blocked when its centre fine cell is blocked. */
-export function refreshCoarseWall(world) {
+function refreshCoarseWall(world) {
   const { coarseSize, factor, size, wall, coarseWall } = world;
   const half = factor >> 1;
   for (let cy = 0; cy < coarseSize; cy++) {
@@ -76,6 +87,23 @@ export function placeFood(world, type, substance, x, y) {
   world.foodCells.push(...cells);
   world.version++;
   return item;
+}
+
+/**
+ * Food with nutrient left keeps a halo; plasmodium inside it thickens into a mass. Once the food is gone the
+ * mass thins slowly and erodes from its weakest cells, leaving slime where it withdraws.
+ * @param {object} world
+ * @param {number} decay fraction of mass lost per update once the food is used up
+ */
+export function updateFoodMasses(world, decay) {
+  for (const item of world.items) {
+    if (item.kind !== "food") continue;
+    const active = item.cells.some((i) => world.food[i] > 0);
+    for (const i of item.halo) {
+      world.halo[i] = active ? 1 : 0;
+      world.mass[i] = active && world.body[i] ? 1 : world.mass[i] * (1 - decay);
+    }
+  }
 }
 
 /** Deposit a dissolving repellent crystal onto the coarse source layer. */

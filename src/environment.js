@@ -1,4 +1,5 @@
 import { diffuse } from "./grid.js";
+import { coarseCellOf } from "./world.js";
 
 /**
  * Advance all passive lattice processes by one step.
@@ -42,14 +43,14 @@ function hasRepellentLeft(world) {
  * as in Jones & Adamatzky's nutrient projection, so engulfed sources stop monopolising the network.
  */
 function emitFoodScent(world, env) {
-  const { food, scent, chemo, body, size, factor, coarseSize } = world;
+  const { food, scent, chemo, body, factor } = world;
   let write = 0;
   const cells = world.foodCells;
   for (let k = 0; k < cells.length; k++) {
     const i = cells[k];
     if (food[i] <= 0) continue;
     cells[write++] = i;
-    const ci = (((i / size) | 0) / factor | 0) * coarseSize + (((i % size) / factor) | 0);
+    const ci = coarseCellOf(world, i);
     const suppression = body[i] ? env.coveredEmission : 1;
     chemo[ci] += scent[i] * env.chemoEmission * suppression / (factor * factor);
   }

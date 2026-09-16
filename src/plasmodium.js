@@ -1,16 +1,16 @@
-import { diffuse, forEachInDisc } from "./grid.js";
-import { labelComponents, shortestPathTree, accumulateFlow } from "./network.js";
-import { addValueNoise, valueNoise } from "./noise.js";
+import { forEachInDisc } from "./grid.js";
+import { addValueNoise } from "./noise.js";
+import { VeinNetwork, signedSample } from "./veins.js";
+import { chemoAt, coarseCellOf } from "./world.js";
 
 const STEPS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]];
 const SENSE_CELLS = 8;
 
 /**
- * Multinucleate plasmodium as a lattice territory.
+ * Multinucleate plasmodium as a lattice territory: the life cycle of each cell.
  * - Young cells at the edge form the advancing fan-shaped front.
  * - Behind the front the sheet withdraws unless an adaptive vein keeps it alive, leaving slime.
- * - Cytoplasm is routed from sources (food, inoculum core) to the fronts; routes carrying flow thicken
- *   into veins, and fronts fed by strong veins grow faster, so arms emerge where supply arrives.
+ * - Fronts fed by strong veins grow faster, so arms emerge where supply arrives (veins live in VeinNetwork).
  */
 export class Plasmodium {
   /**
@@ -25,18 +25,8 @@ export class Plasmodium {
     this.count = 0;
     this.stepsTaken = 0;
     this.births = [];
-    const n = world.size * world.size;
     this.lobe = createLobeNoise(world.size, params.growth.lobeCells, rng);
-    this.labels = new Int32Array(n);
-    this.queue = new Int32Array(n);
-    this.dist = new Int32Array(n);
-    this.parent = new Int32Array(n);
-    this.veinTarget = new Float32Array(n);
-    this.cost = new Uint8Array(n);
-    this.meanderA = valueNoise(world.size, params.network.meanderCells, signedSample(rng));
-    this.meanderB = valueNoise(world.size, params.network.meanderCells, signedSample(rng));
-    this.meanderPhase = rng.next() * Math.PI * 2;
-    this.coreList = [];
+    this.network = new VeinNetwork(world, params, rng);
   }
 
   /** Seed a disc of plasmodium carrying an energy reserve; these cells form the persistent core. */
@@ -48,7 +38,7 @@ export class Plasmodium {
       if (!world.body[i]) this.count++;
       world.body[i] = 1; world.age[i] = 0; world.core[i] = 1;
       world.energy[i] += energy;
-      this.coreList.push(i);
+      this.network.addCore(i);
     });
   }
 
@@ -59,7 +49,7 @@ export class Plasmodium {
 
   /** Advance one step: periodic network update, then every body cell, then synchronous births. */
   step() {
-    if (this.stepsTaken++ % this.params.network.interval === 0) this.updateNetwork();
+    if (this.stepsTaken++ % this.params.network.interval === 0) this.network.update(this.count);
     this.births.length = 0;
     const { body } = this.world;
     for (let i = 0; i < body.length; i++) if (body[i]) this.updateCell(i);
@@ -150,8 +140,8 @@ export class Plasmodium {
     const w = this.world, g = this.params.growth, size = w.size;
     const xi = i % size, yi = (i / size) | 0, xn = n % size, yn = (n / size) | 0;
     const dx = xn - xi, dy = yn - yi;
-    const scent = this.chemoAt(xn, yn);
-    const gradient = this.chemoAt(xn + dx * SENSE_CELLS, yn + dy * SENSE_CELLS) - this.chemoAt(xi - dx * SENSE_CELLS, yi - dy * SENSE_CELLS);
+    const scent = chemoAt(w, xn, yn);
+    const gradient = chemoAt(w, xn + dx * SENSE_CELLS, yn + dy * SENSE_CELLS) - chemoAt(w, xi - dx * SENSE_CELLS, yi - dy * SENSE_CELLS);
     const attraction = 1 + scent * g.chemoBoost + Math.max(0, gradient) * g.gradientBoost;
     const satiety = Math.min(1, this.surplus(i) / g.surplusForRegrowth);
     const slime = w.slime[n] * g.slimeAvoid * Math.max(0, 1 - scent * g.slimeScentMask) * (1 - satiety);
@@ -177,222 +167,15 @@ export class Plasmodium {
     }
   }
 
-  /* ---------- Network ---------- */
-
-  /** Streaming, routing, vein adaptation and supply pressure. */
-  updateNetwork() {
-    const w = this.world;
-    const components = labelComponents(w.body, w.size, this.labels, this.queue);
-    if (!components) return;
-    this.mixEnergy(components);
-    this.updateFoodMasses();
-    this.routeFlow(components);
-    this.adaptVeins();
-    this.spreadPressure();
-  }
-
-  /**
-   * Food with nutrient left keeps a halo; plasmodium inside it thickens into a mass. Once the food is gone the
-   * mass thins slowly and erodes from its weakest cells, leaving slime where it withdraws.
-   */
-  updateFoodMasses() {
-    const w = this.world, decay = this.params.network.massDecay;
-    for (const item of w.items) {
-      if (item.kind !== "food") continue;
-      const active = item.cells.some((i) => w.food[i] > 0);
-      for (const i of item.halo) {
-        w.halo[i] = active ? 1 : 0;
-        w.mass[i] = active && w.body[i] ? 1 : w.mass[i] * (1 - decay);
-      }
-    }
-  }
-
-  /** Shuttle streaming is fast (~1 mm/s): each connected plasmodium moves its energy toward its mean. */
-  mixEnergy(components) {
-    const w = this.world, labels = this.labels;
-    const sums = new Float64Array(components), counts = new Uint32Array(components);
-    for (let i = 0; i < labels.length; i++) {
-      if (labels[i] < 0) continue;
-      sums[labels[i]] += w.energy[i];
-      counts[labels[i]]++;
-    }
-    const mixing = this.params.network.mixing;
-    for (let i = 0; i < labels.length; i++) {
-      if (labels[i] >= 0) w.energy[i] += (sums[labels[i]] / counts[labels[i]] - w.energy[i]) * mixing;
-    }
-  }
-
-  /**
-   * Route cytoplasm along noisy least-cost paths that prefer existing veins:
-   * 1. from the nearest source to each sampled front / maintenance cell (foraging supply);
-   * 2. from one randomly chosen source site to every other source site (Tero-style source/sink pairing),
-   *    which builds the trunks that keep food sources and the inoculum connected.
-   */
-  routeFlow(components) {
-    const w = this.world, net = this.params.network, rng = this.rng, cost = this.cost;
-    this.meanderPhase += (rng.next() - 0.5) * net.meanderDrift;
-    const ca = Math.cos(this.meanderPhase), sa = Math.sin(this.meanderPhase);
-    for (let j = 0; j < cost.length; j++) {
-      if (!w.body[j]) continue;
-      const meander = 0.5 + 0.35 * (ca * this.meanderA[j] + sa * this.meanderB[j]);
-      cost[j] = net.baseCost + Math.round(net.meander * meander) + rng.int(net.noise) + Math.round(net.veinCost * (1 - w.vein[j]));
-    }
-    const { sources, sinks } = this.collectTerminals(components);
-    shortestPathTree(w.size, w.body, sources, cost, this.dist, this.parent);
-    accumulateFlow(this.parent, this.dist, sinks, w.flow);
-    this.routeMesh();
-    const sites = this.sourceSites();
-    if (sites.length < 2) return;
-    const hub = sites.splice(rng.int(sites.length), 1);
-    shortestPathTree(w.size, w.body, hub, cost, this.dist, this.parent);
-    accumulateFlow(this.parent, this.dist, sites, w.flow, { reset: false, amount: net.trunkFlow });
-  }
-
-  /**
-   * Local exchange between random hubs and random cells. Hubs change every update, so the union of these
-   * short routes over time is a reticulated mesh with loops rather than a single tree.
-   */
-  routeMesh() {
-    const w = this.world, net = this.params.network, rng = this.rng;
-    const hubs = [], sinks = [];
-    const hubCount = Math.max(3, Math.round(this.count / net.meshCellsPerHub));
-    const sinkCount = Math.min(net.meshSinkCap, Math.round(this.count / net.meshCellsPerSink));
-    let seen = 0;
-    for (let i = 0; i < w.body.length; i++) {
-      if (!w.body[i]) continue;
-      seen++;
-      reservoirPush(hubs, i, seen, hubCount, rng);
-      reservoirPush(sinks, i, seen, sinkCount, rng);
-    }
-    if (hubs.length < 2) return;
-    shortestPathTree(w.size, w.body, hubs, this.cost, this.dist, this.parent);
-    accumulateFlow(this.parent, this.dist, sinks, w.flow, { reset: false, amount: net.meshAmount });
-  }
-
-  /** One representative covered cell per food item still being eaten, plus one live inoculum core cell. */
-  sourceSites() {
-    const w = this.world, sites = [];
-    for (const item of w.items) {
-      if (item.kind !== "food") continue;
-      const cell = this.randomCell(item.cells, (i) => w.body[i] && w.food[i] > 0);
-      if (cell >= 0) sites.push(cell);
-    }
-    this.coreList = this.coreList.filter((i) => w.core[i]);
-    const core = this.randomCell(this.coreList, (i) => w.body[i]);
-    if (core >= 0) sites.push(core);
-    return sites;
-  }
-
-  /** Uniformly pick a cell from a list that satisfies a predicate, without allocating; -1 when none. */
-  randomCell(cells, accept) {
-    let chosen = -1, seen = 0;
-    for (const i of cells) if (accept(i) && this.rng.int(++seen) === 0) chosen = i;
-    return chosen;
-  }
-
-  /**
-   * Sources: food-covered or core cells (fallback: the thickest vein of a component).
-   * Sinks: sampled front cells, plus a sample of all body cells for maintenance flow so a resting network persists.
-   */
-  collectTerminals(components) {
-    const w = this.world, labels = this.labels, net = this.params.network, frontAge = this.params.growth.frontAge;
-    const sources = [], sinks = [], upkeep = [], hasSource = new Uint8Array(components), fallback = new Int32Array(components).fill(-1);
-    let seen = 0, seenBody = 0;
-    for (let i = 0; i < labels.length; i++) {
-      const c = labels[i];
-      if (c < 0) continue;
-      if (w.food[i] > 0 || w.core[i]) { sources.push(i); hasSource[c] = 1; }
-      if (fallback[c] < 0 || w.vein[i] > w.vein[fallback[c]]) fallback[c] = i;
-      if (w.age[i] < frontAge) reservoirPush(sinks, i, ++seen, net.maxSinks, this.rng);
-      reservoirPush(upkeep, i, ++seenBody, net.maintenanceSinks, this.rng);
-    }
-    for (let c = 0; c < components; c++) if (!hasSource[c]) sources.push(fallback[c]);
-    return { sources, sinks: sinks.concat(upkeep) };
-  }
-
-  /**
-   * Veins relax toward a strength set by the square root of the flow they carry (Tero-style adaptation).
-   * Strong veins are widened across neighbouring cytoplasm so trunks have real thickness.
-   */
-  adaptVeins() {
-    const w = this.world, net = this.params.network, target = this.veinTarget;
-    target.fill(0);
-    for (let i = 0; i < w.flow.length; i++) {
-      if (!w.flow[i] || !w.body[i]) continue;
-      const strength = Math.min(1, Math.sqrt(w.flow[i] / net.flowSaturation));
-      this.widenVein(i, strength, strength > 0.8 ? 1 : 0);
-    }
-    for (let i = 0; i < w.vein.length; i++) {
-      if (!w.body[i]) continue;
-      const delta = target[i] - w.vein[i];
-      w.vein[i] += (delta > 0 ? net.veinRate : net.veinDecay) * delta;
-    }
-  }
-
-  /** Raise the vein target within `radius` cells of i, fading slightly toward the vein wall. */
-  widenVein(i, strength, radius) {
-    const w = this.world, size = w.size, target = this.veinTarget;
-    const x = i % size, y = (i / size) | 0;
-    for (let dy = -radius; dy <= radius; dy++) {
-      for (let dx = -radius; dx <= radius; dx++) {
-        const nx = x + dx, ny = y + dy;
-        if (nx < 0 || ny < 0 || nx >= size || ny >= size || dx * dx + dy * dy > radius * radius + 1) continue;
-        const j = ny * size + nx;
-        const value = strength * (1 - 0.12 * Math.max(Math.abs(dx), Math.abs(dy)));
-        if (w.body[j] && value > target[j]) target[j] = value;
-      }
-    }
-  }
-
-  /** Supply pressure: the strongest vein in each coarse cell, blurred so fronts near vein ends feel it. */
-  spreadPressure() {
-    const w = this.world;
-    w.pressure.fill(0);
-    for (let i = 0; i < w.vein.length; i++) {
-      if (!w.vein[i]) continue;
-      const ci = this.coarseOf(i);
-      if (w.vein[i] > w.pressure[ci]) w.pressure[ci] = w.vein[i];
-    }
-    for (let p = 0; p < this.params.network.pressurePasses; p++) {
-      diffuse(w.pressure, w.coarseScratch, w.coarseSize, { rate: 1, decay: 0 }, w.coarseWall);
-    }
-  }
-
-  /* ---------- Lattice helpers ---------- */
-
   neighbourIndex(i, dx, dy) {
     const size = this.world.size;
     const x = (i % size) + dx, y = ((i / size) | 0) + dy;
     return x < 0 || y < 0 || x >= size || y >= size ? -1 : y * size + x;
   }
 
-  coarseOf(i) {
-    const { size, factor, coarseSize } = this.world;
-    return (((i / size) | 0) / factor | 0) * coarseSize + (((i % size) / factor) | 0);
-  }
+  repelAt(i) { return this.world.repel[coarseCellOf(this.world, i)]; }
 
-  chemoAt(x, y) {
-    const { factor, coarseSize, chemo } = this.world;
-    const cx = Math.min(coarseSize - 1, Math.max(0, (x / factor) | 0));
-    const cy = Math.min(coarseSize - 1, Math.max(0, (y / factor) | 0));
-    return chemo[cy * coarseSize + cx];
-  }
-
-  repelAt(i) { return this.world.repel[this.coarseOf(i)]; }
-
-  pressureAt(i) { return this.world.pressure[this.coarseOf(i)]; }
-}
-
-/** Reservoir sampling: keep a uniform sample of at most `limit` items. */
-function reservoirPush(sample, item, seen, limit, rng) {
-  if (sample.length < limit) { sample.push(item); return; }
-  const slot = rng.int(seen);
-  if (slot < limit) sample[slot] = item;
-}
-
-/** Lattice sampler for zero-mean noise in [-1, 1]. */
-function signedSample(rng) {
-  return () => rng.next() * 2 - 1;
+  pressureAt(i) { return this.world.pressure[coarseCellOf(this.world, i)]; }
 }
 
 /**

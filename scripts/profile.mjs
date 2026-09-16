@@ -1,27 +1,43 @@
+// Per-phase cost of one simulation step on a busy dish: `npm run profile`.
 import { Simulation } from "../src/simulation.js";
 import { PRESETS } from "../src/presets.js";
 import { stepEnvironment } from "../src/environment.js";
+import { labelComponents } from "../src/network.js";
+import { updateFoodMasses } from "../src/world.js";
+
+const WARMUP_STEPS = 1100;
+const MEASURED_STEPS = 80;
+
 const sim = new Simulation({ seed: 3 });
 PRESETS.ring.build(sim);
-sim.step(1100);
-const p = sim.plasmodium, t = {};
-const time = (name, fn) => { const s = performance.now(); fn(); t[name] = (t[name] || 0) + performance.now() - s; };
-const N = 80;
-for (let k = 0; k < N; k++) {
-  const w = sim.world;
-  if (k % 4 === 0) {
-    let comps;
-    time("label", () => { comps = (0, labelOf)(p); });
-    time("mix", () => p.mixEnergy(comps));
-    time("route", () => p.routeFlow(comps));
-    time("veins", () => p.adaptVeins());
-    time("pressure", () => p.spreadPressure());
+sim.step(WARMUP_STEPS);
+
+const { world, params, plasmodium } = sim;
+const { network } = plasmodium;
+const totals = {};
+const time = (name, fn) => {
+  const start = performance.now();
+  const result = fn();
+  totals[name] = (totals[name] ?? 0) + performance.now() - start;
+  return result;
+};
+
+for (let k = 0; k < MEASURED_STEPS; k++) {
+  if (k % params.network.interval === 0) {
+    const components = time("label", () => labelComponents(world.body, world.size, network.labels, network.queue));
+    time("mix", () => network.mixEnergy(components));
+    time("masses", () => updateFoodMasses(world, params.network.massDecay));
+    time("route", () => network.routeFlow(components, plasmodium.count));
+    time("veins", () => network.adaptVeins());
+    time("pressure", () => network.spreadPressure());
   }
-  time("cells", () => { p.births.length = 0; const b = w.body; for (let i = 0; i < b.length; i++) if (b[i]) p.updateCell(i); p.applyBirths(); });
-  time("env", () => stepEnvironment(w, sim.params));
+  time("cells", () => {
+    plasmodium.births.length = 0;
+    for (let i = 0; i < world.body.length; i++) if (world.body[i]) plasmodium.updateCell(i);
+    plasmodium.applyBirths();
+  });
+  time("env", () => stepEnvironment(world, params));
 }
-function labelOf(pl) { return pl.constructor.name && labelComponentsWrap(pl); }
-import { labelComponents } from "../src/network.js";
-function labelComponentsWrap(pl) { return labelComponents(pl.world.body, pl.world.size, pl.labels, pl.queue); }
-for (const [k, v] of Object.entries(t)) console.log(k.padEnd(9), (v / N).toFixed(2), "ms/step");
-console.log("cells", p.count);
+
+for (const [name, ms] of Object.entries(totals)) console.log(name.padEnd(9), (ms / MEASURED_STEPS).toFixed(2), "ms/step");
+console.log("cells", plasmodium.count);
