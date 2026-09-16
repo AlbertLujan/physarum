@@ -51,7 +51,7 @@ python -m http.server 8765   # or any static server; ES modules need http, not f
 Then open <http://localhost:8765/>.
 
 ```sh
-npm test         # 32 behaviour tests, no dependencies (node --test)
+npm test         # behaviour tests, no dependencies (node --test)
 npm run snapshot -- ring out.bin 300,900,1800   # offline morphology frames
 npm run profile  # per-phase cost of one simulation step
 ```
@@ -61,12 +61,17 @@ npm run profile  # per-phase cost of one simulation step
 | File | Role |
 | --- | --- |
 | `src/simulation.js` | Ties world, plasmodium and environment together; tool placement and statistics |
-| `src/plasmodium.js` | Growth, retraction, metabolism, engulfing and the vein network update |
-| `src/network.js` | Connected components, bucket-queue shortest-path trees and flow accumulation |
+| `src/plasmodium.js` | Life cycle of each cell: growth, retraction, metabolism, engulfing |
+| `src/veins.js` | Adaptive vein network: energy streaming, cytoplasm routing, vein thickening, supply pressure |
+| `src/network.js` | Graph algorithms: connected components, bucket-queue shortest-path trees, flow accumulation |
+| `src/world.js` | Lattice layers of the dish; food, repellents, light and barriers; food masses |
 | `src/environment.js` | Attractant and repellent diffusion, slime decay |
-| `src/world.js` | Lattice layers of the dish, food, repellents, light and barriers |
+| `src/edges.js` | Classifies plasmodium borders as advancing, holding or retreating |
+| `src/noise.js` | Value noise shared by the model and the renderer |
+| `src/grid.js`, `src/dish.js`, `src/rng.js` | Lattice helpers, dish mask and seeded random numbers |
+| `src/params.js` | Every model parameter, documented and grouped by process |
 | `src/renderer.js`, `src/sprites.js` | Darkfield-photograph rendering of the dish and its contents |
-| `src/params.js` | Every model parameter, grouped by process |
+| `src/presets.js`, `src/substances.js` | Starting experiments and placeable items |
 | `src/app.js` | Interface: tools, presets, playback and readouts |
 
 ## Deploying your own copy
