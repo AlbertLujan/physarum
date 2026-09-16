@@ -1,5 +1,8 @@
 <meta charset="utf-8">
-<title>Placa de Physarum</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Physarum polycephalum</title>
+<meta name="description" content="Interactive simulation of the slime mould Physarum polycephalum growing in a Petri dish. By Albert Lujan.">
+<meta name="author" content="Albert Lujan">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@1,6..72,500&family=Permanent+Marker&display=swap">
@@ -36,32 +39,32 @@
   }
 
   * { box-sizing: border-box; }
-  body { background: var(--bench); color: var(--ink); font: 15px/1.5 var(--sans); padding-inline: 16px; padding-block: 18px 40px; }
+  body { background: var(--bench); color: var(--ink); font: 15px/1.5 var(--sans); padding-inline: 16px; padding-block: 18px 40px; margin: 0; }
   :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  a { color: var(--marker); }
   .label { margin: 0; font: 700 11px/1.2 var(--sans); text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); }
 
   .masthead { max-width: 1280px; margin: 0 auto 14px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 18px; }
-  .masthead h1 { margin: 0; font: 700 22px/1.1 var(--sans); letter-spacing: -0.01em; }
-  .masthead h1 em { font: italic 500 26px/1 var(--serif); letter-spacing: 0; }
-  .masthead p { margin: 0; color: var(--muted); font-size: 14px; }
+  .masthead h1 { margin: 0; font: italic 500 30px/1.05 var(--serif); letter-spacing: -0.005em; }
+  .masthead p { margin: 0; color: var(--muted); font-size: 14px; max-width: 70ch; }
+  .byline { font-size: 13px; color: var(--muted); }
+  .byline strong { color: var(--ink); }
 
   .lab { max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 20px; align-items: start; }
-  @media (max-width: 900px) { .lab { grid-template-columns: 1fr; } .tray { order: 2; } }
 
   .tray { background: var(--tray); border: 1px solid var(--rule); border-radius: 6px; padding: 14px; display: grid; gap: 14px; }
   .tool-group { display: grid; gap: 6px; }
   .tool-list { display: grid; gap: 4px; }
-  @media (max-width: 900px) { .tool-list { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); } }
   .tool { display: grid; grid-template-columns: 34px 1fr; gap: 10px; align-items: center; width: 100%; text-align: left; padding: 6px 8px; border: 1px solid transparent; border-radius: 4px; background: transparent; color: var(--ink); font: inherit; cursor: pointer; }
   .tool:hover { border-color: var(--rule); }
   .tool[aria-pressed="true"] { background: var(--plasmodium); color: var(--plasmodium-ink); border-color: var(--plasmodium); }
   .tool[aria-pressed="true"] .tool-hint { color: var(--plasmodium-ink); opacity: 0.75; }
   .tool-icon { width: 34px; height: 34px; display: block; border-radius: 50%; background: #16170F; }
   .swatch-inoculum { background: radial-gradient(circle at 40% 40%, #FCD02C 0 30%, #96A228 60%, #16170F 62%); }
-  .swatch-light { background: radial-gradient(circle, #6E6E58 0 45%, #3A3A2E 70%, #16170F 72%); }
+  .swatch-light { background: radial-gradient(circle, #FFFFFF 0 18%, #FFF4B8 30%, rgba(255, 236, 150, 0.55) 52%, #16170F 74%); box-shadow: 0 0 10px rgba(255, 236, 150, 0.55); }
   .swatch-wall { background: linear-gradient(135deg, #16170F 0 38%, #787C76 38% 62%, #16170F 62%); }
   .swatch-erase { background: #16170F; border: 2px dashed #9AA09A; }
-  .tool-text { display: grid; line-height: 1.25; }
+  .tool-text { display: grid; line-height: 1.25; min-width: 0; }
   .tool-name { font-weight: 700; font-size: 14px; }
   .tool-hint { font-size: 12px; color: var(--muted); }
   .field { display: grid; gap: 6px; }
@@ -71,15 +74,15 @@
 
   .bench { display: grid; gap: 12px; min-width: 0; }
   .readouts { display: flex; flex-wrap: wrap; gap: 8px 28px; align-items: baseline; }
-  .readout { display: grid; gap: 2px; }
+  .readout { display: grid; gap: 2px; min-width: 0; }
   .readout strong { font: 500 20px/1.1 var(--mono); font-variant-numeric: tabular-nums; }
   .readout.minor strong { font-size: 14px; color: var(--muted); }
   .status { color: #B3261E; font-weight: 700; }
 
   .dish-wrap { position: relative; width: min(100%, 78vh); aspect-ratio: 1; max-width: 100%; margin-inline: auto; }
   #dish { width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
-  .lid-label { position: absolute; left: 2%; top: 3%; transform: rotate(-8deg); font: 22px/1 var(--hand); color: var(--marker); pointer-events: none; }
-  .lid-label small { display: block; font-size: 14px; margin-top: 4px; }
+  .lid-label { position: absolute; left: 2%; top: 3%; transform: rotate(-8deg); font: clamp(14px, 3.2vw, 22px)/1 var(--hand); color: var(--marker); pointer-events: none; }
+  .lid-label small { display: block; font-size: 0.64em; margin-top: 4px; }
 
   .controls { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; padding: 10px 12px; border: 1px solid var(--rule); border-radius: 6px; background: var(--tray); }
   .controls-group { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
@@ -97,78 +100,131 @@
   .notes p { margin: 0; }
   .notes ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
   .notes em { font-family: var(--serif); font-size: 15px; }
-  .notes a { color: var(--marker); }
+
+  .credits { max-width: 1280px; margin: 24px auto 0; padding-top: 14px; border-top: 1px solid var(--rule); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 18px; font-size: 13px; color: var(--muted); }
+  .credits strong { color: var(--ink); }
+
+  /* Tablet: single column, dish first, tools below. */
+  @media (max-width: 900px) {
+    .lab { grid-template-columns: 1fr; }
+    .tray { order: 2; }
+    .tool-list { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+  }
+
+  /* Phone: tools become a sticky bottom toolbar of compact, horizontally scrollable chips. */
+  @media (max-width: 640px) {
+    body { padding-inline: 12px; padding-block: 12px 0; }
+    .masthead { margin-bottom: 10px; }
+    .masthead h1 { font-size: 26px; }
+    .masthead p { font-size: 13px; }
+    .readouts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; }
+    .readout strong { font-size: 16px; }
+    .readout.minor { grid-column: 1 / -1; }
+    .readout.minor strong { font-size: 12px; }
+    .status { grid-column: 1 / -1; }
+    .controls { padding: 10px; }
+    .controls-group { width: 100%; }
+    .controls-group .btn { flex: 1 1 0; }
+    .speed { flex: 1 1 100%; min-width: 0; }
+    .controls-group select { flex: 1 1 auto; }
+
+    .tray {
+      order: 2; position: sticky; bottom: 0; z-index: 5;
+      margin-inline: -12px; border-radius: 12px 12px 0 0; border-inline: 0; border-bottom: 0;
+      padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+      gap: 6px; box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.18);
+    }
+    #tools { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
+    #tools::-webkit-scrollbar { display: none; }
+    .tool-group { display: contents; }
+    .tool-group > .label { display: none; }
+    .tool-list { display: contents; }
+    .tool { flex: 0 0 auto; width: auto; grid-template-columns: 26px auto; gap: 6px; padding: 5px 10px 5px 5px; border: 1px solid var(--rule); border-radius: 999px; }
+    .tool-icon { width: 26px; height: 26px; }
+    .tool-hint { display: none; }
+    .tool-name { font-size: 13px; white-space: nowrap; }
+    #brush-field { grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; }
+    #brush-field .field-row { display: contents; }
+    #brush-field output { order: 3; }
+    .notes { margin-top: 20px; }
+    .credits { margin-bottom: 12px; }
+  }
 </style>
 
 <header class="masthead">
-  <h1>Placa de <em>Physarum polycephalum</em></h1>
-  <p>Un moho mucilaginoso: una sola célula con miles de núcleos que explora, come y construye redes.</p>
+  <h1>Physarum polycephalum</h1>
+  <p>A slime mould: one single cell with thousands of nuclei that explores, eats and builds networks. <span class="byline">By <strong>Albert Lujan</strong></span></p>
 </header>
 
 <div class="lab">
-  <aside class="tray" aria-label="Bandeja de laboratorio">
+  <aside class="tray" aria-label="Lab tray">
     <div id="tools"></div>
     <div class="field" id="brush-field">
-      <div class="field-row"><label class="label" for="brush">Tamaño del pincel</label><output id="brush-out" for="brush">2.5 mm</output></div>
+      <div class="field-row"><label class="label" for="brush">Brush size</label><output id="brush-out" for="brush">2.5 mm</output></div>
       <input id="brush" type="range" min="0.8" max="8" step="0.1" value="2.5">
     </div>
   </aside>
 
   <main class="bench">
     <div class="readouts" aria-live="off">
-      <div class="readout"><span class="label">Tiempo en la placa</span><strong id="stat-time">0 min</strong></div>
-      <div class="readout"><span class="label">Superficie del plasmodio</span><strong id="stat-area">—</strong></div>
-      <div class="readout"><span class="label">Comida restante</span><strong id="stat-food">—</strong></div>
-      <div class="readout"><span class="label">Red de venas</span><strong id="stat-veins">—</strong></div>
-      <div class="readout minor"><span class="label">Ritmo</span><strong id="stat-rate">—</strong></div>
+      <div class="readout"><span class="label">Time in dish</span><strong id="stat-time">0 min</strong></div>
+      <div class="readout"><span class="label">Plasmodium area</span><strong id="stat-area">—</strong></div>
+      <div class="readout"><span class="label">Food left</span><strong id="stat-food">—</strong></div>
+      <div class="readout"><span class="label">Vein network</span><strong id="stat-veins">—</strong></div>
+      <div class="readout minor"><span class="label">Sim rate</span><strong id="stat-rate">—</strong></div>
       <span class="status" id="stat-status" role="status"></span>
     </div>
 
     <div class="dish-wrap">
-      <canvas id="dish" aria-label="Placa de Petri de 90 mm con el plasmodio. Haz clic o arrastra para colocar la herramienta seleccionada."></canvas>
-      <div class="lid-label" aria-hidden="true">P. polycephalum<small>agar 1,5 % · 22 °C</small></div>
+      <canvas id="dish" aria-label="90 mm Petri dish with the plasmodium. Click or drag to place the selected tool."></canvas>
+      <div class="lid-label" aria-hidden="true">P. polycephalum<small>agar 1.5 % · 22 °C</small></div>
     </div>
     <p class="dish-hint" id="dish-hint"></p>
 
     <div class="controls">
       <div class="controls-group">
-        <button class="btn primary" id="btn-play" type="button" aria-pressed="false">Pausar</button>
-        <button class="btn" id="btn-reset" type="button">Reiniciar placa</button>
-        <label class="speed" for="speed"><span class="label">Velocidad</span><input id="speed" type="range" min="1" max="8" value="2"><output id="speed-out" for="speed">×2</output></label>
+        <button class="btn primary" id="btn-play" type="button" aria-pressed="false">Pause</button>
+        <button class="btn" id="btn-reset" type="button">Reset dish</button>
+        <label class="speed" for="speed"><span class="label">Speed</span><input id="speed" type="range" min="1" max="8" value="2"><output id="speed-out" for="speed">×2</output></label>
       </div>
       <div class="controls-group">
-        <label class="label" for="preset">Experimento</label>
+        <label class="label" for="preset">Experiment</label>
         <select id="preset"></select>
-        <label class="toggle"><input type="checkbox" id="show-signals"> Ver señales químicas</label>
+        <label class="toggle"><input type="checkbox" id="show-signals"> Show chemical signals</label>
       </div>
     </div>
     <p class="preset-description" id="preset-description"></p>
   </main>
 </div>
 
-<section class="notes" aria-label="Cómo funciona el modelo">
+<section class="notes" aria-label="How the model works">
   <div>
-    <h2>Qué se simula</h2>
+    <h2>What is simulated</h2>
     <ul>
-      <li><strong>Frente en abanico:</strong> el borde joven del plasmodio avanza como una lámina lobulada en todas direcciones, aunque no haya comida cerca.</li>
-      <li><strong>Red de venas adaptativa:</strong> el citoplasma fluye desde la comida y el inóculo hacia los frentes y entre las fuentes de comida. Las rutas con más flujo engordan y las que no se usan desaparecen (inspirado en <a href="https://doi.org/10.1126/science.1177894" target="_blank" rel="noopener">Tero et al., 2010</a>).</li>
-      <li><strong>Brazos y malla:</strong> los frentes que reciben venas crecen más rápido; los demás se paran y se retraen. Con el tiempo las venas forman una malla con bucles que cubre la placa.</li>
-      <li><strong>Masas sobre la comida:</strong> el plasmodio engulle cada alimento con una masa gruesa mientras le queda nutriente; bien alimentado sigue explorando, y sin comida migra dejando limo.</li>
-      <li><strong>Quimiotaxis y nutrición:</strong> el olor de la comida se difunde por el agar y orienta el crecimiento. La energía se reparte por todo el plasmodio conectado; los fragmentos aislados pasan hambre.</li>
+      <li><strong>Fan-shaped front:</strong> the young edge of the plasmodium advances as a lobed sheet in every direction, even with no food nearby.</li>
+      <li><strong>Adaptive vein network:</strong> cytoplasm flows from the food and the inoculum to the fronts and between food sources. Routes that carry more flow thicken and unused ones fade (inspired by <a href="https://doi.org/10.1126/science.1177894" target="_blank" rel="noopener">Tero et al., 2010</a>).</li>
+      <li><strong>Arms and mesh:</strong> fronts fed by veins grow faster; the rest stall and withdraw. Over time the veins form a looping mesh across the dish.</li>
+      <li><strong>Masses on food:</strong> the plasmodium engulfs each food item with a thick mass while nutrient remains. Well fed, it keeps exploring; with no food left, it migrates and leaves slime behind.</li>
+      <li><strong>Chemotaxis and feeding:</strong> food scent diffuses through the agar and steers growth. Energy is shared across the whole connected plasmodium; isolated fragments starve.</li>
     </ul>
   </div>
   <div>
-    <h2>Lo que evita</h2>
+    <h2>What it avoids</h2>
     <ul>
-      <li><strong>Limo extracelular:</strong> la lámina que se retira deja limo, y el moho no vuelve a crecer sobre él salvo junto a la comida; es una memoria espacial externa (<a href="https://doi.org/10.1073/pnas.1215037109" target="_blank" rel="noopener">Reid et al., 2012</a>).</li>
-      <li><strong>Sal y quinina:</strong> se disuelven en el agar; frenan el crecimiento y aceleran la retracción.</li>
-      <li><strong>Luz blanca:</strong> es fotófobo; la luz lo repele y aumenta su gasto.</li>
+      <li><strong>Extracellular slime:</strong> withdrawing sheet leaves slime, and the mould will not regrow over it unless it smells food nearby: an external spatial memory (<a href="https://doi.org/10.1073/pnas.1215037109" target="_blank" rel="noopener">Reid et al., 2012</a>).</li>
+      <li><strong>Salt and quinine:</strong> they dissolve into the agar, slow growth and speed up withdrawal.</li>
+      <li><strong>Bright light:</strong> the plasmodium is photophobic. Paint a lit area and it will not grow into it, parts already inside pull back, and staying there costs it extra energy. In the lab, light is used to steer it.</li>
     </ul>
   </div>
   <div>
-    <h2>Escala y límites</h2>
-    <p>Placa de 90 mm y cuadrícula de 400 × 400 celdas (0,23 mm por celda). Cada paso equivale a 40 s, calibrado para que el frente avance a ~1 cm/h. Los valores nutritivos y de olor son relativos, no medidos. Es un modelo 2D de territorio y red: las venas son rutas de mínimo coste con ruido, no un cálculo hidráulico completo, y no reproduce el bombeo rítmico ni los esporangios.</p>
+    <h2>Scale and limits</h2>
+    <p>A 90 mm dish on a 400 × 400 grid (0.23 mm per cell). Each step is 40 s, calibrated so the front advances at about 1 cm/h. Nutrient and scent values are relative, not measured. It is a 2D territory-and-network model: veins are noisy least-cost routes rather than a full hydraulic calculation, and there is no rhythmic pumping or sporulation.</p>
   </div>
 </section>
+
+<footer class="credits">
+  <span>Made by <strong>Albert Lujan</strong></span>
+  <span><a href="https://github.com/AlbertLujan/physarum" target="_blank" rel="noopener">Source code on GitHub</a> · MIT licence</span>
+</footer>
 
 <script type="module" src="src/app.js"></script>

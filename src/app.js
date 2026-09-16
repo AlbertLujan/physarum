@@ -5,10 +5,10 @@ import { SUBSTANCES } from "./substances.js";
 import { renderIcon } from "./sprites.js";
 
 const TOOL_GROUPS = [
-  { label: "Siembra", tools: ["inoculum"] },
-  { label: "Alimentos", tools: ["oat", "glucose", "yeast", "mushroom", "strawberry"] },
-  { label: "Repelentes", tools: ["salt", "quinine", "light"] },
-  { label: "Placa", tools: ["wall", "erase"] },
+  { label: "Seed", tools: ["inoculum"] },
+  { label: "Food", tools: ["oat", "glucose", "yeast", "mushroom", "strawberry"] },
+  { label: "Repellents", tools: ["salt", "quinine", "light"] },
+  { label: "Dish", tools: ["wall", "erase"] },
 ];
 const BRUSH_TOOLS = new Set(["light", "wall", "erase"]);
 const WARMUP_STEPS = 200;
@@ -80,7 +80,7 @@ function selectTool(type) {
   state.tool = type;
   document.querySelectorAll(".tool").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.tool === type)));
   $("brush-field").hidden = !(BRUSH_TOOLS.has(type) || type === "inoculum");
-  $("dish-hint").textContent = BRUSH_TOOLS.has(type) ? "Arrastra sobre la placa para pintar" : "Haz clic en la placa para colocar";
+  $("dish-hint").textContent = BRUSH_TOOLS.has(type) ? "Drag across the dish to paint" : "Click or tap the dish to place it";
 }
 
 function buildPresetMenu() {
@@ -135,7 +135,7 @@ function bindCanvas() {
 
 function setRunning(running) {
   state.running = running;
-  $("btn-play").textContent = running ? "Pausar" : "Reanudar";
+  $("btn-play").textContent = running ? "Pause" : "Resume";
   $("btn-play").setAttribute("aria-pressed", String(!running));
 }
 
@@ -165,19 +165,19 @@ function updateStats() {
   const s = state.sim.stats();
   $("stat-time").textContent = formatDuration(s.elapsedSeconds);
   $("stat-area").textContent = `${(s.areaMm2 / 100).toFixed(2)} cm²`;
-  $("stat-food").textContent = s.foodRemaining == null ? "sin comida" : `${Math.round(s.foodRemaining * 100)} %`;
+  $("stat-food").textContent = s.foodRemaining == null ? "no food" : `${Math.round(s.foodRemaining * 100)} %`;
   $("stat-veins").textContent = `${s.veinLengthCm.toFixed(0)} cm`;
   $("stat-rate").textContent = rateLabel();
-  $("stat-status").textContent = s.cells === 0 ? "El plasmodio ha muerto" : "";
+  $("stat-status").textContent = s.cells === 0 ? "The plasmodium has died" : "";
 }
 
 /** Actual simulated time per second, flagged when the computer cannot reach the chosen speed. */
 function rateLabel() {
-  if (!state.running) return "en pausa";
+  if (!state.running) return "paused";
   const { stepsPerSecond } = state.rate;
   const wanted = STEPS_PER_FRAME[state.speed - 1] * 60;
   const text = formatRate(stepsPerSecond * state.sim.params.secondsPerStep);
-  return stepsPerSecond && stepsPerSecond < wanted * 0.7 ? `${text} · máximo de tu equipo` : text;
+  return stepsPerSecond && stepsPerSecond < wanted * 0.7 ? `${text} · your device's maximum` : text;
 }
 
 /** Simulated time per real second, e.g. "25 min/s". */

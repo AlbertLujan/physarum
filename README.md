@@ -1,4 +1,6 @@
-# Physarum dish
+# Physarum polycephalum
+
+By **Albert Lujan**.
 
 An interactive, biologically grounded simulation of the slime mould *Physarum polycephalum* growing in a
 90 mm Petri dish. Drop oat flakes, glucose or yeast on the agar, add salt, light or barriers, and watch a
@@ -20,7 +22,7 @@ single multinucleate cell explore the dish, engulf the food and build an adaptiv
 | Engulfing | While nutrient remains, a thick wrinkled mass covers the food; it thins slowly once the food is gone |
 | Migration | With no food left, the rear withdraws and the plasmodium moves on, leaving slime behind |
 | Slime memory | Withdrawn sheet leaves extracellular slime; the mould avoids regrowing over it unless it is well fed or smells food ([Reid et al., 2012](https://doi.org/10.1073/pnas.1215037109)) |
-| Repellents | Salt and quinine dissolve into the agar; white light repels the photophobic plasmodium and raises its upkeep |
+| Repellents | Salt and quinine dissolve into the agar. Bright light: paint a lit area and the photophobic plasmodium will not grow into it, pulls back from it and pays extra upkeep while inside |
 
 Scale: a 400 × 400 lattice over a 90 mm dish (0.23 mm per cell). One step is 40 s, calibrated so the front
 advances at roughly 1 cm/h, as a real plasmodium does.
@@ -76,4 +78,4 @@ npm run profile  # per-phase cost of one simulation step
 
 ## Licence
 
-[MIT](LICENSE).
+[MIT](LICENSE) © Albert Lujan.

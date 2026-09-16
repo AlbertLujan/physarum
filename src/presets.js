@@ -4,8 +4,8 @@
  */
 export const PRESETS = {
   ring: {
-    label: "Anillo de comida",
-    description: "Inóculo central rodeado de avena y levadura: el moho explora y conecta las fuentes.",
+    label: "Food ring",
+    description: "A central inoculum surrounded by oat flakes and yeast: the mould explores and connects the sources.",
     build(sim) {
       const s = scaler(sim);
       sim.place("inoculum", s(200), s(200), s(14));
@@ -16,8 +16,8 @@ export const PRESETS = {
     },
   },
   maze: {
-    label: "Laberinto",
-    description: "Montaje de Nakagaki et al. (2000): el plasmodio llena el laberinto y hay avena en la entrada y en el centro. Observa cómo abandona los pasillos y se concentra en la comida.",
+    label: "Maze",
+    description: "The Nakagaki et al. (2000) setup: the plasmodium fills the maze, with oats at the entrance and in the centre. Watch it abandon the corridors and gather on the food.",
     build(sim) {
       const s = scaler(sim);
       const rings = [{ r: 55, gaps: [0.6] }, { r: 100, gaps: [3.6] }, { r: 145, gaps: [1.9, 5.2] }];
@@ -28,8 +28,8 @@ export const PRESETS = {
     },
   },
   saltBarrier: {
-    label: "Sal en el camino",
-    description: "Glucosa detrás de una línea de sal abierta por abajo: ¿la rodea o la cruza?",
+    label: "Salt in the way",
+    description: "Glucose behind a line of salt that is open at the bottom: will it go around or cross?",
     build(sim) {
       const s = scaler(sim);
       sim.place("inoculum", s(95), s(200), s(13));
@@ -38,8 +38,8 @@ export const PRESETS = {
     },
   },
   fusion: {
-    label: "Dos inóculos",
-    description: "Dos trozos del mismo plasmodio con comida entre ambos: se encuentran y se fusionan.",
+    label: "Two inocula",
+    description: "Two pieces of the same plasmodium with food between them: they meet and fuse.",
     build(sim) {
       const s = scaler(sim);
       sim.place("inoculum", s(110), s(200), s(12));
@@ -49,8 +49,8 @@ export const PRESETS = {
     },
   },
   empty: {
-    label: "Placa vacía",
-    description: "Solo el inóculo. Añade tú lo que quieras.",
+    label: "Empty dish",
+    description: "Just the inoculum. Add whatever you like.",
     build(sim) {
       const s = scaler(sim);
       sim.place("inoculum", s(200), s(200), s(12));

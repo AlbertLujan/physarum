@@ -9,7 +9,7 @@ import { HALO_SCALE } from "./world.js";
  */
 const AGAR = [14, 15, 12];
 const SLIME = [52, 54, 38];
-const LIT = [74, 74, 60];
+const LIT = [128, 124, 96];
 const WALL = [120, 124, 118];
 const FILM = [150, 162, 40];
 const VEIN = [230, 216, 66];
