@@ -1,5 +1,6 @@
 import { diffuse, forEachInDisc } from "./grid.js";
 import { labelComponents, shortestPathTree, accumulateFlow } from "./network.js";
+import { addValueNoise, valueNoise } from "./noise.js";
 
 const STEPS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]];
 const SENSE_CELLS = 8;
@@ -32,8 +33,8 @@ export class Plasmodium {
     this.parent = new Int32Array(n);
     this.veinTarget = new Float32Array(n);
     this.cost = new Uint8Array(n);
-    this.meanderA = smoothNoise(world.size, params.network.meanderCells, rng);
-    this.meanderB = smoothNoise(world.size, params.network.meanderCells, rng);
+    this.meanderA = valueNoise(world.size, params.network.meanderCells, signedSample(rng));
+    this.meanderB = valueNoise(world.size, params.network.meanderCells, signedSample(rng));
     this.meanderPhase = rng.next() * Math.PI * 2;
     this.coreList = [];
   }
@@ -382,32 +383,16 @@ export class Plasmodium {
   pressureAt(i) { return this.world.pressure[this.coarseOf(i)]; }
 }
 
-/**
- * Smooth zero-mean value noise in [-1, 1]. Two such fields mixed with a slowly drifting phase give a spatially
- * coherent cost landscape that changes gradually, so veins keep stable curves instead of averaging into lattice lines.
- * @returns {Float32Array}
- */
-function smoothNoise(size, cell, rng) {
-  const lattice = Math.ceil(size / cell) + 2;
-  const values = Float32Array.from({ length: lattice * lattice }, () => rng.next() * 2 - 1);
-  const out = new Float32Array(size * size);
-  for (let y = 0; y < size; y++) {
-    const gy = y / cell, y0 = gy | 0, fy = smooth(gy - y0);
-    for (let x = 0; x < size; x++) {
-      const gx = x / cell, x0 = gx | 0, fx = smooth(gx - x0);
-      const a = values[y0 * lattice + x0], b = values[y0 * lattice + x0 + 1];
-      const c = values[(y0 + 1) * lattice + x0], d = values[(y0 + 1) * lattice + x0 + 1];
-      out[y * size + x] = (a + (b - a) * fx) * (1 - fy) + (c + (d - c) * fx) * fy;
-    }
-  }
-  return out;
-}
-
 /** Reservoir sampling: keep a uniform sample of at most `limit` items. */
 function reservoirPush(sample, item, seen, limit, rng) {
   if (sample.length < limit) { sample.push(item); return; }
   const slot = rng.int(seen);
   if (slot < limit) sample[slot] = item;
+}
+
+/** Lattice sampler for zero-mean noise in [-1, 1]. */
+function signedSample(rng) {
+  return () => rng.next() * 2 - 1;
 }
 
 /**
@@ -416,21 +401,8 @@ function reservoirPush(sample, item, seen, limit, rng) {
  */
 function createLobeNoise(size, spacing, rng) {
   const out = new Float32Array(size * size);
-  for (const [cell, amplitude] of [[spacing, 0.65], [Math.max(3, spacing / 3), 0.25]]) {
-    const lattice = Math.ceil(size / cell) + 2;
-    const values = Float32Array.from({ length: lattice * lattice }, () => rng.next() * 2 - 1);
-    for (let y = 0; y < size; y++) {
-      const gy = y / cell, y0 = gy | 0, fy = smooth(gy - y0);
-      for (let x = 0; x < size; x++) {
-        const gx = x / cell, x0 = gx | 0, fx = smooth(gx - x0);
-        const a = values[y0 * lattice + x0], b = values[y0 * lattice + x0 + 1];
-        const c = values[(y0 + 1) * lattice + x0], d = values[(y0 + 1) * lattice + x0 + 1];
-        out[y * size + x] += amplitude * ((a + (b - a) * fx) * (1 - fy) + (c + (d - c) * fx) * fy);
-      }
-    }
-  }
+  addValueNoise(out, size, spacing, signedSample(rng), { amplitude: 0.65 });
+  addValueNoise(out, size, Math.max(3, spacing / 3), signedSample(rng), { amplitude: 0.25 });
   for (let i = 0; i < out.length; i++) out[i] = Math.max(0.15, 1 + out[i] * 1.2);
   return out;
 }
-
-function smooth(t) { return t * t * (3 - 2 * t); }

@@ -2,6 +2,7 @@ import { remainingFood } from "./simulation.js";
 import { drawSubstance } from "./sprites.js";
 import { HALO_SCALE } from "./world.js";
 import { edgeStrength } from "./edges.js";
+import { valueNoise, linear } from "./noise.js";
 
 /**
  * Specimen colours, modelled on darkfield photographs of Physarum: clear agar over a black stage,
@@ -22,6 +23,7 @@ const GLOSS = [150, 162, 168];
 /** Border tint: advancing edges glow in this saturated yellow, holding edges only faintly. */
 const RIM = [238, 224, 36];
 const WRINKLE_CELLS = 3;
+const GLOSS_CELLS = 5;
 
 const mix = (a, b, t) => a + (b - a) * t;
 
@@ -44,8 +46,8 @@ export class DishRenderer {
     this.plasm = makeLayer(size);
     this.signals = makeLayer(coarseSize);
     this.grain = new Float32Array(size * size).map(() => (Math.random() - 0.5) * 3);
-    this.wrinkle = valueNoise(size, WRINKLE_CELLS);
-    this.gloss = valueNoise(size, 5);
+    this.wrinkle = valueNoise(size, WRINKLE_CELLS, Math.random, { ease: linear });
+    this.gloss = valueNoise(size, GLOSS_CELLS, Math.random, { ease: linear });
     this.massShape = new Float32Array(size * size);
     this.shapeVersion = -1;
   }
@@ -263,26 +265,6 @@ export class DishRenderer {
     ctx.beginPath(); ctx.arc(cx - radius + brush.x * scale, cy - radius + brush.y * scale, Math.max(3 * dpr, brush.radius * scale), 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
   }
-}
-
-/**
- * Smooth value noise in [0, 1] with lattice spacing `cell`.
- * @returns {Float32Array}
- */
-function valueNoise(size, cell) {
-  const lattice = Math.ceil(size / cell) + 2;
-  const values = Float32Array.from({ length: lattice * lattice }, Math.random);
-  const out = new Float32Array(size * size);
-  for (let y = 0; y < size; y++) {
-    const gy = y / cell, y0 = gy | 0, fy = gy - y0;
-    for (let x = 0; x < size; x++) {
-      const gx = x / cell, x0 = gx | 0, fx = gx - x0;
-      const top = mix(values[y0 * lattice + x0], values[y0 * lattice + x0 + 1], fx);
-      const bottom = mix(values[(y0 + 1) * lattice + x0], values[(y0 + 1) * lattice + x0 + 1], fx);
-      out[y * size + x] = mix(top, bottom, fy);
-    }
-  }
-  return out;
 }
 
 /**
