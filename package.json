@@ -1,0 +1,12 @@
+{
+  "name": "physarum-petri",
+  "version": "1.0.0",
+  "description": "Biologically grounded Physarum polycephalum simulation in a Petri dish (Jones 2010 agent model with nutrient, slime-memory and repellent layers).",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "snapshot": "node scripts/snapshot.mjs",
+    "profile": "node scripts/profile.mjs"
+  }
+}

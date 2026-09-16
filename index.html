@@ -1,0 +1,174 @@
+<meta charset="utf-8">
+<title>Placa de Physarum</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@1,6..72,500&family=Permanent+Marker&display=swap">
+<style>
+  :root {
+    --bench: #E4E7E2;
+    --tray: #F1F3EF;
+    --ink: #1A1F1B;
+    --muted: #5A625C;
+    --rule: #C7CDC6;
+    --plasmodium: #E9B80C;
+    --plasmodium-ink: #1A1F1B;
+    --marker: #2349A8;
+    --glass: rgba(255, 255, 255, 0.55);
+    --glass-edge: rgba(60, 70, 64, 0.35);
+    --dish-shadow: rgba(20, 30, 22, 0.28);
+    --focus: #2349A8;
+    --sans: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+    --serif: "Newsreader", "Iowan Old Style", Georgia, serif;
+    --hand: "Permanent Marker", "Comic Sans MS", cursive;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bench: #0C0E0C; --tray: #151815; --ink: #E3E7E1; --muted: #9AA39C; --rule: #2B312C;
+      --plasmodium: #F0C21C; --plasmodium-ink: #141612; --marker: #8FB0F5;
+      --glass: rgba(200, 215, 205, 0.22); --glass-edge: rgba(210, 225, 215, 0.3); --dish-shadow: rgba(0, 0, 0, 0.7); --focus: #8FB0F5;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bench: #0C0E0C; --tray: #151815; --ink: #E3E7E1; --muted: #9AA39C; --rule: #2B312C;
+    --plasmodium: #F0C21C; --plasmodium-ink: #141612; --marker: #8FB0F5;
+    --glass: rgba(200, 215, 205, 0.22); --glass-edge: rgba(210, 225, 215, 0.3); --dish-shadow: rgba(0, 0, 0, 0.7); --focus: #8FB0F5;
+  }
+
+  * { box-sizing: border-box; }
+  body { background: var(--bench); color: var(--ink); font: 15px/1.5 var(--sans); padding-inline: 16px; padding-block: 18px 40px; }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .label { margin: 0; font: 700 11px/1.2 var(--sans); text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); }
+
+  .masthead { max-width: 1280px; margin: 0 auto 14px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 18px; }
+  .masthead h1 { margin: 0; font: 700 22px/1.1 var(--sans); letter-spacing: -0.01em; }
+  .masthead h1 em { font: italic 500 26px/1 var(--serif); letter-spacing: 0; }
+  .masthead p { margin: 0; color: var(--muted); font-size: 14px; }
+
+  .lab { max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 20px; align-items: start; }
+  @media (max-width: 900px) { .lab { grid-template-columns: 1fr; } .tray { order: 2; } }
+
+  .tray { background: var(--tray); border: 1px solid var(--rule); border-radius: 6px; padding: 14px; display: grid; gap: 14px; }
+  .tool-group { display: grid; gap: 6px; }
+  .tool-list { display: grid; gap: 4px; }
+  @media (max-width: 900px) { .tool-list { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); } }
+  .tool { display: grid; grid-template-columns: 34px 1fr; gap: 10px; align-items: center; width: 100%; text-align: left; padding: 6px 8px; border: 1px solid transparent; border-radius: 4px; background: transparent; color: var(--ink); font: inherit; cursor: pointer; }
+  .tool:hover { border-color: var(--rule); }
+  .tool[aria-pressed="true"] { background: var(--plasmodium); color: var(--plasmodium-ink); border-color: var(--plasmodium); }
+  .tool[aria-pressed="true"] .tool-hint { color: var(--plasmodium-ink); opacity: 0.75; }
+  .tool-icon { width: 34px; height: 34px; display: block; border-radius: 50%; background: #16170F; }
+  .swatch-inoculum { background: radial-gradient(circle at 40% 40%, #FCD02C 0 30%, #96A228 60%, #16170F 62%); }
+  .swatch-light { background: radial-gradient(circle, #6E6E58 0 45%, #3A3A2E 70%, #16170F 72%); }
+  .swatch-wall { background: linear-gradient(135deg, #16170F 0 38%, #787C76 38% 62%, #16170F 62%); }
+  .swatch-erase { background: #16170F; border: 2px dashed #9AA09A; }
+  .tool-text { display: grid; line-height: 1.25; }
+  .tool-name { font-weight: 700; font-size: 14px; }
+  .tool-hint { font-size: 12px; color: var(--muted); }
+  .field { display: grid; gap: 6px; }
+  .field-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  output { font: 500 12px var(--mono); color: var(--ink); min-width: 3ch; white-space: nowrap; }
+  input[type="range"] { width: 100%; accent-color: var(--plasmodium); }
+
+  .bench { display: grid; gap: 12px; min-width: 0; }
+  .readouts { display: flex; flex-wrap: wrap; gap: 8px 28px; align-items: baseline; }
+  .readout { display: grid; gap: 2px; }
+  .readout strong { font: 500 20px/1.1 var(--mono); font-variant-numeric: tabular-nums; }
+  .readout.minor strong { font-size: 14px; color: var(--muted); }
+  .status { color: #B3261E; font-weight: 700; }
+
+  .dish-wrap { position: relative; width: min(100%, 78vh); aspect-ratio: 1; max-width: 100%; margin-inline: auto; }
+  #dish { width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
+  .lid-label { position: absolute; left: 2%; top: 3%; transform: rotate(-8deg); font: 22px/1 var(--hand); color: var(--marker); pointer-events: none; }
+  .lid-label small { display: block; font-size: 14px; margin-top: 4px; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; padding: 10px 12px; border: 1px solid var(--rule); border-radius: 6px; background: var(--tray); }
+  .controls-group { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+  .btn { font: 700 14px var(--sans); padding: 8px 14px; border-radius: 4px; border: 1px solid var(--ink); background: transparent; color: var(--ink); cursor: pointer; }
+  .btn.primary { background: var(--ink); color: var(--bench); }
+  select { font: 14px var(--sans); color: var(--ink); background: var(--bench); border: 1px solid var(--rule); border-radius: 4px; padding: 7px 8px; max-width: 100%; }
+  .speed { display: flex; align-items: center; gap: 8px; min-width: 160px; }
+  .toggle { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+  .toggle input { accent-color: var(--plasmodium); width: 16px; height: 16px; }
+  .preset-description, .dish-hint { margin: 0; font-size: 13px; color: var(--muted); }
+
+  .notes { max-width: 1280px; margin: 28px auto 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px 28px; border-top: 1px solid var(--rule); padding-top: 18px; }
+  .notes h2 { margin: 0 0 6px; font: 700 15px var(--sans); }
+  .notes p, .notes li { font-size: 14px; color: var(--muted); max-width: 65ch; }
+  .notes p { margin: 0; }
+  .notes ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+  .notes em { font-family: var(--serif); font-size: 15px; }
+  .notes a { color: var(--marker); }
+</style>
+
+<header class="masthead">
+  <h1>Placa de <em>Physarum polycephalum</em></h1>
+  <p>Un moho mucilaginoso: una sola célula con miles de núcleos que explora, come y construye redes.</p>
+</header>
+
+<div class="lab">
+  <aside class="tray" aria-label="Bandeja de laboratorio">
+    <div id="tools"></div>
+    <div class="field" id="brush-field">
+      <div class="field-row"><label class="label" for="brush">Tamaño del pincel</label><output id="brush-out" for="brush">2.5 mm</output></div>
+      <input id="brush" type="range" min="0.8" max="8" step="0.1" value="2.5">
+    </div>
+  </aside>
+
+  <main class="bench">
+    <div class="readouts" aria-live="off">
+      <div class="readout"><span class="label">Tiempo en la placa</span><strong id="stat-time">0 min</strong></div>
+      <div class="readout"><span class="label">Superficie del plasmodio</span><strong id="stat-area">—</strong></div>
+      <div class="readout"><span class="label">Comida restante</span><strong id="stat-food">—</strong></div>
+      <div class="readout"><span class="label">Red de venas</span><strong id="stat-veins">—</strong></div>
+      <div class="readout minor"><span class="label">Ritmo</span><strong id="stat-rate">—</strong></div>
+      <span class="status" id="stat-status" role="status"></span>
+    </div>
+
+    <div class="dish-wrap">
+      <canvas id="dish" aria-label="Placa de Petri de 90 mm con el plasmodio. Haz clic o arrastra para colocar la herramienta seleccionada."></canvas>
+      <div class="lid-label" aria-hidden="true">P. polycephalum<small>agar 1,5 % · 22 °C</small></div>
+    </div>
+    <p class="dish-hint" id="dish-hint"></p>
+
+    <div class="controls">
+      <div class="controls-group">
+        <button class="btn primary" id="btn-play" type="button" aria-pressed="false">Pausar</button>
+        <button class="btn" id="btn-reset" type="button">Reiniciar placa</button>
+        <label class="speed" for="speed"><span class="label">Velocidad</span><input id="speed" type="range" min="1" max="8" value="2"><output id="speed-out" for="speed">×2</output></label>
+      </div>
+      <div class="controls-group">
+        <label class="label" for="preset">Experimento</label>
+        <select id="preset"></select>
+        <label class="toggle"><input type="checkbox" id="show-signals"> Ver señales químicas</label>
+      </div>
+    </div>
+    <p class="preset-description" id="preset-description"></p>
+  </main>
+</div>
+
+<section class="notes" aria-label="Cómo funciona el modelo">
+  <div>
+    <h2>Qué se simula</h2>
+    <ul>
+      <li><strong>Frente en abanico:</strong> el borde joven del plasmodio avanza como una lámina lobulada en todas direcciones, aunque no haya comida cerca.</li>
+      <li><strong>Red de venas adaptativa:</strong> el citoplasma fluye desde la comida y el inóculo hacia los frentes y entre las fuentes de comida. Las rutas con más flujo engordan y las que no se usan desaparecen (inspirado en <a href="https://doi.org/10.1126/science.1177894" target="_blank" rel="noopener">Tero et al., 2010</a>).</li>
+      <li><strong>Brazos y malla:</strong> los frentes que reciben venas crecen más rápido; los demás se paran y se retraen. Con el tiempo las venas forman una malla con bucles que cubre la placa.</li>
+      <li><strong>Masas sobre la comida:</strong> el plasmodio engulle cada alimento con una masa gruesa mientras le queda nutriente; bien alimentado sigue explorando, y sin comida migra dejando limo.</li>
+      <li><strong>Quimiotaxis y nutrición:</strong> el olor de la comida se difunde por el agar y orienta el crecimiento. La energía se reparte por todo el plasmodio conectado; los fragmentos aislados pasan hambre.</li>
+    </ul>
+  </div>
+  <div>
+    <h2>Lo que evita</h2>
+    <ul>
+      <li><strong>Limo extracelular:</strong> la lámina que se retira deja limo, y el moho no vuelve a crecer sobre él salvo junto a la comida; es una memoria espacial externa (<a href="https://doi.org/10.1073/pnas.1215037109" target="_blank" rel="noopener">Reid et al., 2012</a>).</li>
+      <li><strong>Sal y quinina:</strong> se disuelven en el agar; frenan el crecimiento y aceleran la retracción.</li>
+      <li><strong>Luz blanca:</strong> es fotófobo; la luz lo repele y aumenta su gasto.</li>
+    </ul>
+  </div>
+  <div>
+    <h2>Escala y límites</h2>
+    <p>Placa de 90 mm y cuadrícula de 400 × 400 celdas (0,23 mm por celda). Cada paso equivale a 40 s, calibrado para que el frente avance a ~1 cm/h. Los valores nutritivos y de olor son relativos, no medidos. Es un modelo 2D de territorio y red: las venas son rutas de mínimo coste con ruido, no un cálculo hidráulico completo, y no reproduce el bombeo rítmico ni los esporangios.</p>
+  </div>
+</section>
+
+<script type="module" src="src/app.js"></script>
