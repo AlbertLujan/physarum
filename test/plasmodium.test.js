@@ -307,3 +307,14 @@ test("veins meander instead of following the lattice axes", () => {
   // Octilinear routing with per-cell noise put ~74% of vein cells on such lines; meandering routes stay well below.
   assert.ok(onLongAxisRuns < veinCells * 0.45, `${onLongAxisRuns} of ${veinCells} vein cells lie on long straight lattice lines`);
 });
+
+test("withdrawing cells record when they retracted", () => {
+  const sim = new Simulation({ seed: 27, params: SMALL });
+  sim.place("inoculum", CENTRE, CENTRE, 6);
+  sim.step(200);
+  const { retractedStep, slime, body } = sim.world;
+  const withdrawn = [];
+  for (let i = 0; i < slime.length; i++) if (slime[i] > 0.5 && !body[i]) withdrawn.push(retractedStep[i]);
+  assert.ok(withdrawn.length > 50);
+  assert.ok(withdrawn.every((s) => s > 0 && s <= sim.plasmodium.stepsTaken), "retraction step missing or out of range");
+});

@@ -8,7 +8,7 @@ import { forEachInDisc } from "./grid.js";
  *   plasmodium   body (1 = cytoplasm present), age (steps since the cell joined), energy, vein (0..1 thickness),
  *                flow (routed cytoplasm), core (inoculum origin),
  *                mass (thick sheet engulfing food, 0..1), halo (cells around food that still has nutrient),
- *                trace (dried imprint of withdrawn veins, 0..1)
+ *                trace (dried imprint of withdrawn veins, 0..1), retractedStep (step a cell last withdrew, 0 = never)
  * Coarse layers also hold pressure: vein supply blurred toward the fronts.
  * Coarse layers (coarseSize²): chemo (food attractant), repel, repelSource, coarseWall.
  * @param {object} params
@@ -24,6 +24,7 @@ export function createWorld(params) {
     food: new Float32Array(n), scent: new Float32Array(n), light: new Float32Array(n), slime: new Float32Array(n),
     body: new Uint8Array(n), age: new Float32Array(n), energy: new Float32Array(n), vein: new Float32Array(n),
     flow: new Float32Array(n), core: new Uint8Array(n), mass: new Float32Array(n), halo: new Uint8Array(n), trace: new Float32Array(n),
+    retractedStep: new Float32Array(n),
     pressure: new Float32Array(cn),
     chemo: new Float32Array(cn), repel: new Float32Array(cn), repelSource: new Float32Array(cn), coarseWall: new Uint8Array(cn),
     scratch: new Float32Array(n), coarseScratch: new Float32Array(cn),

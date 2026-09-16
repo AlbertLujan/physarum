@@ -107,6 +107,7 @@ export class Plasmodium {
     }
     w.slime[i] = 1;
     w.trace[i] = Math.max(w.trace[i], w.vein[i]);
+    w.retractedStep[i] = this.stepsTaken;
     this.clearCell(i);
   }
 

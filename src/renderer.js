@@ -1,6 +1,7 @@
 import { remainingFood } from "./simulation.js";
 import { drawSubstance } from "./sprites.js";
 import { HALO_SCALE } from "./world.js";
+import { edgeStrength } from "./edges.js";
 
 /**
  * Specimen colours, modelled on darkfield photographs of Physarum: clear agar over a black stage,
@@ -18,6 +19,8 @@ const MASS_DEEP = [240, 168, 20];
 const THIN_VEIN = [140, 146, 36];
 const TRACE = [96, 104, 100];
 const GLOSS = [150, 162, 168];
+/** Border tint: advancing edges glow in this saturated yellow, holding edges only faintly. */
+const RIM = [238, 224, 36];
 const WRINKLE_CELLS = 3;
 
 const mix = (a, b, t) => a + (b - a) * t;
@@ -122,8 +125,10 @@ export class DishRenderer {
    * whose opacity follows vein strength, and wrinkled masses engulfing food.
    */
   paintPlasmodium() {
-    const { body, age, vein, mass } = this.sim.world;
+    const { world } = this.sim;
+    const { body, age, vein, mass } = world;
     const { frontAge } = this.sim.params.growth;
+    const step = this.sim.plasmodium.stepsTaken;
     const shape = this.refreshMassShape();
     const px = this.plasm.image.data;
     for (let i = 0; i < body.length; i++) {
@@ -135,6 +140,8 @@ export class DishRenderer {
       const vr = mix(THIN_VEIN[0], VEIN[0], tone), vg = mix(THIN_VEIN[1], VEIN[1], tone), vb = mix(THIN_VEIN[2], VEIN[2], tone);
       px[o] = mix(FILM[0], vr, v) + this.grain[i]; px[o + 1] = mix(FILM[1], vg, v) + this.grain[i]; px[o + 2] = mix(FILM[2], vb, v);
       px[o + 3] = Math.max(film, v) * 255;
+      const rim = edgeStrength(world, i, step, frontAge);
+      if (rim > 0) shadeRim(px, o, rim);
       const cover = massCoverage(mass[i], shape[i]);
       if (cover > 0) this.shadeMass(px, o, i, cover);
     }
@@ -287,6 +294,15 @@ function massCoverage(mass, shape) {
   if (mass <= 0.02) return 0;
   const edge = 0.15 + (1 - mass) * 0.75;
   return Math.min(1, Math.max(0, (shape - edge) / 0.15)) * Math.min(1, mass * 1.6);
+}
+
+/** Tint a border cell toward the rim colour and make it more opaque, in proportion to rim strength. */
+function shadeRim(px, o, rim) {
+  const t = rim * 0.6;
+  px[o] = mix(px[o], RIM[0], t);
+  px[o + 1] = mix(px[o + 1], RIM[1], t);
+  px[o + 2] = mix(px[o + 2], RIM[2], t);
+  px[o + 3] = Math.max(px[o + 3], (0.45 + 0.5 * rim) * 255);
 }
 
 function makeLayer(size) {
