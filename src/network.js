@@ -1,5 +1,5 @@
 const NEIGHBOURS_8 = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
-export const UNREACHED = 0x3fffffff;
+const UNREACHED = 0x3fffffff;
 
 /**
  * Label 8-connected regions of a mask.
@@ -28,8 +28,9 @@ export function labelComponents(mask, size, labels, queue) {
   return count;
 }
 
-/** Cell costs must stay below this; it sizes the circular bucket queue. */
-export const MAX_CELL_COST = 256;
+/** Size of the circular bucket queue; any single step cost (diagonal included) must stay below it. */
+const RING_SIZE = 256;
+const RING_MASK = RING_SIZE - 1;
 /** Diagonal step multiplier in 1/128 units (181/128 ≈ √2), keeping lattice paths close to Euclidean. */
 const DIAGONAL = 181;
 
@@ -45,37 +46,44 @@ const DIAGONAL = 181;
 export function shortestPathTree(size, passable, sources, cost, dist, parent) {
   dist.fill(UNREACHED);
   parent.fill(-1);
-  const rings = Array.from({ length: MAX_CELL_COST }, () => []);
-  const ringMask = MAX_CELL_COST - 1;
+  const rings = Array.from({ length: RING_SIZE }, () => []);
+  const graph = { size, passable, cost, dist, parent, rings };
   let pending = 0;
   for (const s of sources) { dist[s] = 0; rings[0].push(s); pending++; }
   for (let d = 0; pending > 0; d++) {
-    const bucket = rings[d & ringMask];
+    const bucket = rings[d & RING_MASK];
     for (let k = 0; k < bucket.length; k++) {
-      const i = bucket[k];
       pending--;
-      if (dist[i] !== d) continue;
-      const x = i % size, y = (i / size) | 0;
-      for (let dy = -1; dy <= 1; dy++) {
-        const ny = y + dy;
-        if (ny < 0 || ny >= size) continue;
-        for (let dx = -1; dx <= 1; dx++) {
-          const nx = x + dx;
-          if ((dx === 0 && dy === 0) || nx < 0 || nx >= size) continue;
-          const j = ny * size + nx;
-          if (!passable[j]) continue;
-          const step = dx !== 0 && dy !== 0 ? (cost[j] * DIAGONAL) >> 7 : cost[j];
-          const nd = d + step;
-          if (nd >= dist[j]) continue;
-          dist[j] = nd;
-          parent[j] = i;
-          rings[nd & ringMask].push(j);
-          pending++;
-        }
-      }
+      if (dist[bucket[k]] === d) pending += relaxNeighbours(bucket[k], d, graph);
     }
     bucket.length = 0;
   }
+}
+
+/**
+ * Offer every passable 8-neighbour of settled cell i a path through i.
+ * @returns {number} how many cells were queued with a shorter distance
+ */
+function relaxNeighbours(i, d, { size, passable, cost, dist, parent, rings }) {
+  const x = i % size, y = (i / size) | 0;
+  let queued = 0;
+  for (let dy = -1; dy <= 1; dy++) {
+    const ny = y + dy;
+    if (ny < 0 || ny >= size) continue;
+    for (let dx = -1; dx <= 1; dx++) {
+      const nx = x + dx;
+      if ((dx === 0 && dy === 0) || nx < 0 || nx >= size) continue;
+      const j = ny * size + nx;
+      if (!passable[j]) continue;
+      const nd = d + (dx !== 0 && dy !== 0 ? (cost[j] * DIAGONAL) >> 7 : cost[j]);
+      if (nd >= dist[j]) continue;
+      dist[j] = nd;
+      parent[j] = i;
+      rings[nd & RING_MASK].push(j);
+      queued++;
+    }
+  }
+  return queued;
 }
 
 /**
@@ -95,7 +103,7 @@ export function accumulateFlow(parent, dist, sinks, flow, { reset = true, amount
 }
 
 /** Visit the in-bounds 8-neighbours of cell i. */
-export function forEachNeighbour(size, i, visit) {
+function forEachNeighbour(size, i, visit) {
   const x = i % size, y = (i / size) | 0;
   for (const [dx, dy] of NEIGHBOURS_8) {
     const nx = x + dx, ny = y + dy;
