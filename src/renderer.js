@@ -9,7 +9,7 @@ import { HALO_SCALE } from "./world.js";
  */
 const AGAR = [14, 15, 12];
 const SLIME = [52, 54, 38];
-const LIT = [128, 124, 96];
+const LIT = [156, 150, 112];
 const WALL = [120, 124, 118];
 const FILM = [150, 162, 40];
 const VEIN = [230, 216, 66];
@@ -106,7 +106,7 @@ export class DishRenderer {
     for (let i = 0; i < slime.length; i++) {
       const o = i * 4, g = this.grain[i];
       const shine = Math.max(0, this.gloss[i] - 0.8) * 0.5;
-      const s = Math.min(1, slime[i]) * 0.55, l = light[i] * 0.6, t = Math.min(1, trace[i] * 1.6) * 0.8;
+      const s = Math.min(1, slime[i]) * 0.55, l = Math.pow(light[i], 1.4) * 0.7, t = Math.min(1, trace[i] * 1.6) * 0.8;
       let r = mix(AGAR[0] + g, GLOSS[0], shine), gr = mix(AGAR[1] + g, GLOSS[1], shine), b = mix(AGAR[2] + g, GLOSS[2], shine);
       r = mix(r, SLIME[0], s); gr = mix(gr, SLIME[1], s); b = mix(b, SLIME[2], s);
       r = mix(r, TRACE[0], t); gr = mix(gr, TRACE[1], t); b = mix(b, TRACE[2], t);

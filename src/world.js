@@ -88,9 +88,22 @@ export function placeRepellent(world, type, substance, x, y) {
   world.version++;
 }
 
-/** Paint a static layer (light) inside the dish. */
+/** A light spot spills this far beyond the brush radius before fading to darkness. */
+const LIGHT_SPREAD = 1.5;
+
+/**
+ * Paint a soft light spot, like a lamp pointed at the dish: full brightness at the centre, fading smoothly to
+ * darkness at LIGHT_SPREAD × radius. Overlapping strokes keep the brighter value.
+ */
 export function paintLight(world, x, y, radius) {
-  forEachInDisc(world.size, x, y, radius, (i) => { if (!world.dishMask[i]) world.light[i] = 1; });
+  const reach = radius * LIGHT_SPREAD;
+  const cx = Math.floor(x), cy = Math.floor(y);
+  forEachInDisc(world.size, x, y, reach, (i) => {
+    if (world.dishMask[i]) return;
+    const d = Math.hypot((i % world.size) - cx, ((i / world.size) | 0) - cy) / reach;
+    const glow = (1 - d * d) ** 2;
+    if (glow > world.light[i]) world.light[i] = glow;
+  });
   world.version++;
 }
 
