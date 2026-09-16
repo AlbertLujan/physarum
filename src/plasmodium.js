@@ -117,18 +117,24 @@ export class Plasmodium {
     this.count--;
   }
 
-  /** Front cells, and occasionally well-supplied vein cells, try to bud into a random free neighbour. */
+  /**
+   * Front cells, and occasionally well-supplied vein cells, try to bud into a random free neighbour.
+   * Cells already touching food keep engulfing it at any age and may spend their last reserve doing so,
+   * so a plasmodium that arrives exhausted still reaches the nutrient instead of starving next to it.
+   */
   tryGrow(i) {
     const w = this.world, g = this.params.growth;
     const young = w.age[i] < g.frontAge;
+    const engulfing = w.halo[i] === 1;
     const supply = this.pressureAt(i);
     const branchChance = g.sideBranch * (1 + this.surplus(i));
-    if (!young && !(supply > 0.35 && this.rng.next() < branchChance)) return;
+    if (!young && !engulfing && !(supply > 0.35 && this.rng.next() < branchChance)) return;
     const [dx, dy] = STEPS[this.rng.int(STEPS.length)];
     const n = this.neighbourIndex(i, dx, dy);
-    const { growthCost, growthReserve } = this.params.metabolism;
-    if (n < 0 || w.wall[n] || w.body[n] || w.energy[i] < growthCost + growthReserve) return;
-    const surplus = w.energy[i] - growthReserve;
+    const { growthCost } = this.params.metabolism;
+    const reserve = w.halo[n] ? 0 : this.params.metabolism.growthReserve;
+    if (n < 0 || w.wall[n] || w.body[n] || w.energy[i] < growthCost + reserve) return;
+    const surplus = w.energy[i] - reserve;
     const vigour = surplus / (surplus + g.energyHalf);
     const p = g.base * vigour * (1 + supply * g.pressureGain) * this.environmentFactor(i, n);
     if (this.rng.next() < p) this.births.push(i, n);

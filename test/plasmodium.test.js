@@ -318,3 +318,13 @@ test("withdrawing cells record when they retracted", () => {
   assert.ok(withdrawn.length > 50);
   assert.ok(withdrawn.every((s) => s > 0 && s <= sim.plasmodium.stepsTaken), "retraction step missing or out of range");
 });
+
+test("a nearly exhausted plasmodium touching food still engulfs and eats it", () => {
+  const sim = new Simulation({ seed: 28, params: SMALL });
+  sim.place("oat", CENTRE, CENTRE);
+  sim.place("inoculum", CENTRE + 11, CENTRE, 3);
+  const { world } = sim;
+  for (let i = 0; i < world.body.length; i++) if (world.body[i]) world.energy[i] = 0.3;
+  sim.step(80);
+  assert.ok(sim.stats().foodRemaining < 1, "the plasmodium sat next to the food without eating it");
+});
