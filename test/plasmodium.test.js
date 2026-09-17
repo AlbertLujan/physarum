@@ -328,15 +328,3 @@ test("a nearly exhausted plasmodium touching food still engulfs and eats it", ()
   sim.step(80);
   assert.ok(sim.stats().foodRemaining < 1, "the plasmodium sat next to the food without eating it");
 });
-
-test("the vein network records how far each cell lies along the supply routes", () => {
-  const sim = new Simulation({ seed: 29, params: SMALL });
-  sim.place("inoculum", CENTRE, CENTRE, 5);
-  sim.step(120);
-  const { flowDistance } = sim.plasmodium.network;
-  const { body, size } = sim.world;
-  let reached = 0, bodyCells = 0;
-  for (let i = 0; i < body.length; i++) if (body[i]) { bodyCells++; if (flowDistance[i] >= 0) reached++; }
-  assert.ok(reached > bodyCells * 0.8, `only ${reached}/${bodyCells} body cells have a route distance`);
-  assert.equal(flowDistance[cellIndex(size, CENTRE, CENTRE)], 0, "the inoculum core is a source at distance 0");
-});

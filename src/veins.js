@@ -1,5 +1,5 @@
 import { diffuse } from "./grid.js";
-import { labelComponents, shortestPathTree, accumulateFlow, UNREACHED } from "./network.js";
+import { labelComponents, shortestPathTree, accumulateFlow } from "./network.js";
 import { valueNoise } from "./noise.js";
 import { coarseCellOf, updateFoodMasses } from "./world.js";
 
@@ -25,8 +25,6 @@ export class VeinNetwork {
     this.parent = new Int32Array(n);
     this.veinTarget = new Float32Array(n);
     this.cost = new Uint8Array(n);
-    /** Route cost from the nearest source for each body cell (-1 when unreached); drives the on-screen pulse. */
-    this.flowDistance = new Float32Array(n).fill(-1);
     this.meanderA = valueNoise(world.size, params.network.meanderCells, signedSample(rng));
     this.meanderB = valueNoise(world.size, params.network.meanderCells, signedSample(rng));
     this.meanderPhase = rng.next() * Math.PI * 2;
@@ -81,19 +79,12 @@ export class VeinNetwork {
     const { sources, sinks } = this.collectTerminals(components);
     shortestPathTree(w.size, w.body, sources, this.cost, this.dist, this.parent);
     accumulateFlow(this.parent, this.dist, sinks, w.flow);
-    this.recordFlowDistance();
     this.routeMesh(cellCount);
     const sites = this.sourceSites();
     if (sites.length < 2) return;
     const hub = sites.splice(rng.int(sites.length), 1);
     shortestPathTree(w.size, w.body, hub, this.cost, this.dist, this.parent);
     accumulateFlow(this.parent, this.dist, sites, w.flow, { reset: false, amount: net.trunkFlow });
-  }
-
-  /** Keep the supply-route distances before later routing passes overwrite the shared buffer. */
-  recordFlowDistance() {
-    const { body } = this.world, { dist, flowDistance } = this;
-    for (let i = 0; i < flowDistance.length; i++) flowDistance[i] = body[i] && dist[i] !== UNREACHED ? dist[i] : -1;
   }
 
   /**
