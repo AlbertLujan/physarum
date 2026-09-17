@@ -3,25 +3,13 @@ import { drawSubstance } from "./sprites.js";
 import { HALO_SCALE } from "./world.js";
 import { edgeStrength } from "./edges.js";
 import { valueNoise, linear } from "./noise.js";
+import { resolveColours } from "./colours.js";
 
 /**
- * Specimen colours, modelled on darkfield photographs of Physarum: clear agar over a black stage,
- * a translucent olive film at the fronts, luminous yellow veins and crumpled yellow-orange masses on food.
+ * Colours that are not part of the viewer's palette (see colours.js for the editable ones).
  * The dish content looks the same in both page themes.
  */
-const AGAR = [14, 15, 12];
-const SLIME = [52, 54, 38];
-const LIT = [156, 150, 112];
-const WALL = [120, 124, 118];
-const FILM = [150, 162, 40];
-const VEIN = [230, 216, 66];
-const MASS_LIGHT = [255, 224, 40];
-const MASS_DEEP = [240, 168, 20];
-const THIN_VEIN = [140, 146, 36];
-const TRACE = [96, 104, 100];
 const GLOSS = [150, 162, 168];
-/** Border tint: advancing edges glow in this saturated yellow, holding edges only faintly. */
-const RIM = [238, 224, 36];
 const SCENT_SIGNAL = [40, 110, 230];
 const REPELLENT_SIGNAL = [200, 40, 160];
 
@@ -70,6 +58,15 @@ export class DishRenderer {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
     this.geometry = { cx: 0, cy: 0, radius: 1, dpr: 1 };
+    this.colours = resolveColours(null);
+  }
+
+  /**
+   * Use a palette for every following frame.
+   * @param {Record<string, number[]>} colours complete palette from resolveColours
+   */
+  setColours(colours) {
+    this.colours = colours;
   }
 
   /** Bind a simulation and allocate its pixel buffers. */
@@ -141,6 +138,7 @@ export class DishRenderer {
   /** Agar, extracellular slime traces, illuminated zones and barriers. */
   paintBase() {
     const { slime, light, wall, dishMask, trace } = this.sim.world;
+    const { agar: AGAR, slime: SLIME, trace: TRACE, light: LIT, wall: WALL } = this.colours;
     const px = this.base.image.data;
     for (let i = 0; i < slime.length; i++) {
       const o = i * 4, g = this.grain[i];
@@ -174,7 +172,7 @@ export class DishRenderer {
       if (!body[i]) { px[o + 3] = 0; continue; }
       this.shadeBody(px, o, i, frontAge);
       const rim = edgeStrength(world, i, step, frontAge);
-      if (rim > 0) shadeRim(px, o, rim);
+      if (rim > 0) shadeRim(px, o, rim, this.colours.rim);
       const cover = massCoverage(mass[i], shape[i]);
       if (cover > 0) this.shadeMass(px, o, i, cover);
     }
@@ -184,6 +182,7 @@ export class DishRenderer {
   /** Film colour for young or withdrawing sheet, blended toward vein colour by vein strength. */
   shadeBody(px, o, i, frontAge) {
     const { age, vein } = this.sim.world;
+    const { film: FILM, thinVein: THIN_VEIN, vein: VEIN } = this.colours;
     const film = age[i] < frontAge * LOOK.youngFilmAges ? LOOK.youngFilmOpacity : LOOK.oldFilmOpacity;
     const v = Math.min(1, vein[i] * LOOK.veinOpacityGain);
     const tone = Math.min(1, vein[i] * LOOK.veinToneGain);
@@ -197,6 +196,7 @@ export class DishRenderer {
    * noise. As the mass thins, folds dull first and the colour sinks back into the film.
    */
   shadeMass(px, o, i, cover) {
+    const { massLight: MASS_LIGHT, massDeep: MASS_DEEP } = this.colours;
     const w = this.wrinkle[i];
     const fold = Math.min(1, Math.max(0, (w - LOOK.massFoldStart) * LOOK.massFoldGain)) * (0.4 + 0.6 * cover);
     const gap = w < LOOK.massGapBelow ? LOOK.massGapOpacity : 1;
@@ -262,7 +262,7 @@ export class DishRenderer {
     ctx.shadowColor = palette.shadow;
     ctx.shadowBlur = 24 * dpr;
     ctx.shadowOffsetY = 6 * dpr;
-    ctx.fillStyle = `rgb(${AGAR.join(",")})`;
+    ctx.fillStyle = `rgb(${this.colours.agar.join(",")})`;
     ctx.beginPath(); ctx.arc(cx, cy, radius + 6 * dpr, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
   }
@@ -328,7 +328,7 @@ function fade(spent, left) {
 }
 
 /** Tint a border cell toward the rim colour and make it more opaque, in proportion to rim strength. */
-function shadeRim(px, o, rim) {
+function shadeRim(px, o, rim, RIM) {
   const t = rim * LOOK.rimTint;
   px[o] = mix(px[o], RIM[0], t);
   px[o + 1] = mix(px[o + 1], RIM[1], t);

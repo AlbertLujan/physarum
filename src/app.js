@@ -3,6 +3,8 @@ import { DishRenderer } from "./renderer.js";
 import { PRESETS } from "./presets.js";
 import { SUBSTANCES } from "./substances.js";
 import { renderIcon } from "./sprites.js";
+import { mountColourPanel } from "./colourPanel.js";
+import { rgbToHex } from "./colours.js";
 
 const TOOL_GROUPS = [
   { label: "Seed", tools: ["inoculum"] },
@@ -81,6 +83,12 @@ function selectTool(type) {
   document.querySelectorAll(".tool").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.tool === type)));
   $("brush-field").hidden = !(BRUSH_TOOLS.has(type) || type === "inoculum");
   $("dish-hint").textContent = BRUSH_TOOLS.has(type) ? "Drag across the dish to paint" : "Click or tap the dish to place it";
+}
+
+/** Recolour the dish and the tool icons that show agar behind them. */
+function applyColours(colours) {
+  renderer.setColours(colours);
+  document.documentElement.style.setProperty("--agar", rgbToHex(colours.agar));
 }
 
 function buildPresetMenu() {
@@ -221,6 +229,7 @@ function start() {
   state.palette = readPalette();
   buildPresetMenu();
   buildToolTray();
+  mountColourPanel({ grid: $("colour-grid"), presetSelect: $("colour-preset"), resetButton: $("colour-reset"), onChange: applyColours });
   bindCanvas();
   bindControls();
   loadPreset(state.preset);

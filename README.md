@@ -24,6 +24,8 @@ single multinucleate cell explore the dish, engulf the food and build an adaptiv
 | Slime memory | Withdrawn sheet leaves extracellular slime; the mould avoids regrowing over it unless it is well fed or smells food ([Reid et al., 2012](https://doi.org/10.1073/pnas.1215037109)) |
 | Repellents | Salt and quinine dissolve into the agar. Bright light: paint a lit area and the photophobic plasmodium will not grow into it, pulls back from it and pays extra upkeep while inside |
 
+Open **Colours** under the dish to recolour every layer (agar, slime, film, veins, edges, food masses…), try ready-made palettes such as Bioluminescent, Neon or Iodine stain, or mix your own. The palette is remembered in your browser and never changes the model.
+
 Scale: a 400 × 400 lattice over a 90 mm dish (0.23 mm per cell). One step is 40 s, calibrated so the front
 advances at roughly 1 cm/h, as a real plasmodium does.
 
@@ -71,6 +73,7 @@ npm run profile  # per-phase cost of one simulation step
 | `src/grid.js`, `src/dish.js`, `src/rng.js` | Lattice helpers, dish mask and seeded random numbers |
 | `src/params.js` | Every model parameter, documented and grouped by process |
 | `src/renderer.js`, `src/sprites.js` | Darkfield-photograph rendering of the dish and its contents |
+| `src/colours.js`, `src/colourPanel.js` | Editable palette: colour layers, ready-made palettes and the colour panel |
 | `src/presets.js`, `src/substances.js` | Starting experiments and placeable items |
 | `src/app.js` | Interface: tools, presets, playback and readouts |
 

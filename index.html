@@ -60,11 +60,11 @@
   .tool:hover { border-color: var(--rule); }
   .tool[aria-pressed="true"] { background: var(--plasmodium); color: var(--plasmodium-ink); border-color: var(--plasmodium); }
   .tool[aria-pressed="true"] .tool-hint { color: var(--plasmodium-ink); opacity: 0.75; }
-  .tool-icon { width: 34px; height: 34px; display: block; border-radius: 50%; background: #16170F; }
-  .swatch-inoculum { background: radial-gradient(circle at 40% 40%, #FCD02C 0 30%, #96A228 60%, #16170F 62%); }
-  .swatch-light { background: radial-gradient(circle, #FFFFFF 0 18%, #FFF4B8 30%, rgba(255, 236, 150, 0.55) 52%, #16170F 74%); box-shadow: 0 0 10px rgba(255, 236, 150, 0.55); }
-  .swatch-wall { background: linear-gradient(135deg, #16170F 0 38%, #787C76 38% 62%, #16170F 62%); }
-  .swatch-erase { background: #16170F; border: 2px dashed #9AA09A; }
+  .tool-icon { width: 34px; height: 34px; display: block; border-radius: 50%; background: var(--agar, #16170F); }
+  .swatch-inoculum { background: radial-gradient(circle at 40% 40%, #FCD02C 0 30%, #96A228 60%, var(--agar, #16170F) 62%); }
+  .swatch-light { background: radial-gradient(circle, #FFFFFF 0 18%, #FFF4B8 30%, rgba(255, 236, 150, 0.55) 52%, var(--agar, #16170F) 74%); box-shadow: 0 0 10px rgba(255, 236, 150, 0.55); }
+  .swatch-wall { background: linear-gradient(135deg, var(--agar, #16170F) 0 38%, #787C76 38% 62%, var(--agar, #16170F) 62%); }
+  .swatch-erase { background: var(--agar, #16170F); border: 2px dashed #9AA09A; }
   .tool-text { display: grid; line-height: 1.25; min-width: 0; }
   .tool-name { font-weight: 700; font-size: 14px; }
   .tool-hint { font-size: 12px; color: var(--muted); }
@@ -94,6 +94,14 @@
   .toggle { display: flex; align-items: center; gap: 6px; font-size: 14px; }
   .toggle input { accent-color: var(--plasmodium); width: 16px; height: 16px; }
   .preset-description, .dish-hint { margin: 0; font-size: 13px; color: var(--muted); }
+
+  .palette { border: 1px solid var(--rule); border-radius: 6px; background: var(--tray); padding: 10px 12px; }
+  .palette summary { cursor: pointer; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+  .palette-hint { font-size: 13px; color: var(--muted); }
+  .palette-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 12px; }
+  .palette-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 14px; margin-top: 12px; }
+  .swatch-field { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+  .swatch-field input[type="color"] { flex: none; width: 36px; height: 28px; padding: 0; border: 1px solid var(--rule); border-radius: 4px; background: none; cursor: pointer; }
 
   .notes { max-width: 1280px; margin: 28px auto 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px 28px; border-top: 1px solid var(--rule); padding-top: 18px; }
   .notes h2 { margin: 0 0 6px; font: 700 15px var(--sans); }
@@ -195,6 +203,16 @@
       </div>
     </div>
     <p class="preset-description" id="preset-description"></p>
+
+    <details class="palette" id="palette">
+      <summary><span class="label">Colours</span><span class="palette-hint">Recolour every part of the dish and mix your own palette</span></summary>
+      <div class="palette-bar">
+        <label class="label" for="colour-preset">Palette</label>
+        <select id="colour-preset"></select>
+        <button class="btn" id="colour-reset" type="button">Reset colours</button>
+      </div>
+      <div class="palette-grid" id="colour-grid"></div>
+    </details>
   </main>
 </div>
 
