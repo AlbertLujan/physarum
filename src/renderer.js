@@ -3,6 +3,7 @@ import { drawSubstance } from "./sprites.js";
 import { HALO_SCALE } from "./world.js";
 import { edgeStrength } from "./edges.js";
 import { valueNoise, linear } from "./noise.js";
+import { pulseLevel } from "./pulse.js";
 
 /**
  * Specimen colours, modelled on darkfield photographs of Physarum: clear agar over a black stage,
@@ -57,6 +58,7 @@ const LOOK = Object.freeze({
   spentFoodSaturation: 0.3,
   spentFoodBrightness: 0.85,
   spentFoodScale: 0.75,
+  pulseTrough: 0.5,           // vein brightness between two pulse crests (1 = no pulse)
 });
 
 const mix = (a, b, t) => a + (b - a) * t;
@@ -110,7 +112,8 @@ export class DishRenderer {
 
   /**
    * Render one frame.
-   * @param {{palette: object, showSignals: boolean, brush: null|{x: number, y: number, radius: number}}} view
+   * @param {{palette: object, showSignals: boolean, brush: null|{x: number, y: number, radius: number},
+   *          pulseTime?: number|null}} view pulseTime is the on-screen clock for the vein pulse; null disables it
    */
   draw(view) {
     const { ctx, canvas } = this;
@@ -123,7 +126,7 @@ export class DishRenderer {
     ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI * 2); ctx.clip();
     this.blit(this.paintBase(), radius);
     this.drawItems();
-    this.blit(this.paintPlasmodium(), radius);
+    this.blit(this.paintPlasmodium(view.pulseTime ?? null), radius);
     if (view.showSignals) this.blit(this.paintSignals(), radius);
     ctx.restore();
     this.drawRim(view.palette);
@@ -162,7 +165,7 @@ export class DishRenderer {
    * Plasmodium: translucent olive film where the sheet is young (fainter once it withdraws), luminous veins
    * whose opacity follows vein strength, and wrinkled masses engulfing food.
    */
-  paintPlasmodium() {
+  paintPlasmodium(pulseTime) {
     const { world } = this.sim;
     const { body, mass } = world;
     const { frontAge } = this.sim.params.growth;
@@ -172,7 +175,7 @@ export class DishRenderer {
     for (let i = 0; i < body.length; i++) {
       const o = i * 4;
       if (!body[i]) { px[o + 3] = 0; continue; }
-      this.shadeBody(px, o, i, frontAge);
+      this.shadeBody(px, o, i, frontAge, pulseTime);
       const rim = edgeStrength(world, i, step, frontAge);
       if (rim > 0) shadeRim(px, o, rim);
       const cover = massCoverage(mass[i], shape[i]);
@@ -181,15 +184,25 @@ export class DishRenderer {
     return commit(this.plasm);
   }
 
-  /** Film colour for young or withdrawing sheet, blended toward vein colour by vein strength. */
-  shadeBody(px, o, i, frontAge) {
+  /**
+   * Film colour for young or withdrawing sheet, blended toward vein colour by vein strength.
+   * With a pulse clock, veins brighten and dim as the contraction wave travels outward along the supply routes.
+   */
+  shadeBody(px, o, i, frontAge, pulseTime) {
     const { age, vein } = this.sim.world;
     const film = age[i] < frontAge * LOOK.youngFilmAges ? LOOK.youngFilmOpacity : LOOK.oldFilmOpacity;
-    const v = Math.min(1, vein[i] * LOOK.veinOpacityGain);
-    const tone = Math.min(1, vein[i] * LOOK.veinToneGain);
+    const beat = pulseTime === null || !vein[i] ? 1 : this.pulseBeat(i, pulseTime);
+    const v = Math.min(1, vein[i] * LOOK.veinOpacityGain) * beat;
+    const tone = Math.min(1, vein[i] * LOOK.veinToneGain) * beat;
     const vr = mix(THIN_VEIN[0], VEIN[0], tone), vg = mix(THIN_VEIN[1], VEIN[1], tone), vb = mix(THIN_VEIN[2], VEIN[2], tone);
     px[o] = mix(FILM[0], vr, v) + this.grain[i]; px[o + 1] = mix(FILM[1], vg, v) + this.grain[i]; px[o + 2] = mix(FILM[2], vb, v);
     px[o + 3] = Math.max(film, v) * 255;
+  }
+
+  /** Vein brightness factor from the travelling pulse: 1 at a crest, LOOK.pulseTrough in a trough. */
+  pulseBeat(i, pulseTime) {
+    const level = pulseLevel(this.sim.plasmodium.network.flowDistance[i], pulseTime);
+    return LOOK.pulseTrough + (1 - LOOK.pulseTrough) * level;
   }
 
   /**

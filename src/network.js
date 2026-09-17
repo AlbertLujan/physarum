@@ -1,5 +1,6 @@
 const NEIGHBOURS_8 = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
-const UNREACHED = 0x3fffffff;
+/** Distance marking cells that no source can reach. */
+export const UNREACHED = 0x3fffffff;
 
 /**
  * Label 8-connected regions of a mask.

@@ -21,6 +21,7 @@ single multinucleate cell explore the dish, engulf the food and build an adaptiv
 | Feeding and hunger | Food is consumed, energy is shared across the whole connected plasmodium, growth costs energy and fragments cut off from food starve |
 | Engulfing | While nutrient remains, a thick wrinkled mass covers the food; it thins slowly once the food is gone |
 | Migration | With no food left, the rear withdraws and the plasmodium moves on, leaving slime behind |
+| Pulsing veins | A brightness wave travels outward along the supply routes, like shuttle streaming ([Alim et al., 2013](https://doi.org/10.1073/pnas.1300502110)); slowed down on screen and visual only |
 | Slime memory | Withdrawn sheet leaves extracellular slime; the mould avoids regrowing over it unless it is well fed or smells food ([Reid et al., 2012](https://doi.org/10.1073/pnas.1215037109)) |
 | Repellents | Salt and quinine dissolve into the agar. Bright light: paint a lit area and the photophobic plasmodium will not grow into it, pulls back from it and pays extra upkeep while inside |
 
@@ -67,6 +68,7 @@ npm run profile  # per-phase cost of one simulation step
 | `src/world.js` | Lattice layers of the dish; food, repellents, light and barriers; food masses |
 | `src/environment.js` | Attractant and repellent diffusion, slime decay |
 | `src/edges.js` | Classifies plasmodium borders as advancing, holding or retreating |
+| `src/pulse.js` | Travelling contraction wave shown on the veins |
 | `src/noise.js` | Value noise shared by the model and the renderer |
 | `src/grid.js`, `src/dish.js`, `src/rng.js` | Lattice helpers, dish mask and seeded random numbers |
 | `src/params.js` | Every model parameter, documented and grouped by process |

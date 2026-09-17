@@ -22,7 +22,11 @@ const state = {
   sim: null, preset: "ring", tool: "oat", running: true, speed: 2,
   pointer: null, painting: false, lastPaint: null, palette: null, frames: 0,
   rate: { steps: 0, since: performance.now(), stepsPerSecond: 0 },
+  pulseClock: 0, lastFrameAt: null,
 };
+const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+/** Longest frame gap the pulse clock accepts, so a background tab does not jump the wave. */
+const MAX_PULSE_STEP_S = 0.1;
 const renderer = new DishRenderer($("dish"));
 
 /* ---------- Setup ---------- */
@@ -205,14 +209,24 @@ function trackRate(steps) {
   r.steps = 0; r.since = now;
 }
 
-function frame() {
+/** On-screen clock for the vein pulse: runs only while the dish is running and motion is allowed. */
+function tickPulse(timestamp) {
+  const elapsed = state.lastFrameAt === null ? 0 : (timestamp - state.lastFrameAt) / 1000;
+  state.lastFrameAt = timestamp;
+  if (state.running) state.pulseClock += Math.min(MAX_PULSE_STEP_S, elapsed);
+  return reducedMotion.matches ? null : state.pulseClock;
+}
+
+function frame(timestamp) {
   requestAnimationFrame(frame);
   advance();
+  const pulseTime = tickPulse(timestamp);
   const brushing = state.pointer && (BRUSH_TOOLS.has(state.tool) || state.tool === "inoculum");
   renderer.draw({
     palette: state.palette,
     showSignals: $("show-signals").checked,
     brush: brushing ? { ...state.pointer, radius: brushCells() } : null,
+    pulseTime,
   });
   if (++state.frames % 8 === 0) updateStats();
 }
@@ -225,7 +239,7 @@ function start() {
   bindControls();
   loadPreset(state.preset);
   renderer.resize();
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) setRunning(false);
+  if (reducedMotion.matches) setRunning(false);
   requestAnimationFrame(frame);
 }
 
